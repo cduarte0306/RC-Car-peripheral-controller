@@ -1,0 +1,4 @@
+[submodule "src/libraries/FreeRTOS"]
+	path = src/libraries/FreeRTOS
+	url = https://github.com/FreeRTOS/FreeRTOS.git
+	branch = main
