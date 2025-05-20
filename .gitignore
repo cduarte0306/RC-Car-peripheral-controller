@@ -1,0 +1,63 @@
+# PSoC Creator generated files
+*.cywrk.*
+*.cyprj.*
+*.cycdx
+*.rpt
+*.svd
+*.crf
+*.d
+*.o
+*.elf
+*.hex
+*.map
+*.dep
+*.lib
+*.lst
+*.log
+*.obj
+*.i
+
+# Backup files
+*~
+*.bak
+
+# IDE metadata
+**/Generated_Source/
+.cydsn/GeneratedSrc/
+**/codegentemp/
+.cydsn/Design Wide Resources/
+
+# Build output folders
+.cydsn/Debug/
+.cydsn/Release/
+.cydsn/build/
+
+# FreeRTOS compiled objects (if outside build folder)
+FreeRTOS/*.o
+FreeRTOS/*.d
+
+# User preference files (per-machine settings)
+*.launch
+*.settings/
+
+# VSCode or other editors
+.vscode/
+*.code-workspace
+
+# MacOS or Windows system files
+.DS_Store
+Thumbs.db
+
+# Ignore built binaries if you build externally
+*.bin
+*.axf
+*.elf
+*.map
+*.list
+*.out
+
+*.xml
+
+*.txt
+*.log
+Debug/
