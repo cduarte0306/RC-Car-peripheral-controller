@@ -12,7 +12,7 @@
 
 #include "project.h"
 
-
+#include "RCUtils.h"
 #include "rc_car.h"
 
 #include "FreeRTOS.h"
@@ -45,6 +45,8 @@ int main(void)
     
     UART_Debug_Start();
     
+    vLoggingPrintf(DEBUG_INFO, LOG_PSOC, " ===============================\r\n\r\n");
+    
     /* Create a simple task */
     ret = xTaskCreate(
         vLEDMonitorTask,               /* Task function */
@@ -54,7 +56,12 @@ int main(void)
         1,                         /* Priority */
         NULL                       /* Task handle */
     );
-    CYASSERT(ret);
+    if (ret != RET_PASS)
+    {
+        vLoggingPrintfCritical("main | err: init led-monitor fail\r\n");
+        CYASSERT(FALSE);
+        for (;;);
+    }
     
     ret = xTaskCreate(
         vCommsTask,                /* Task function */
@@ -64,7 +71,12 @@ int main(void)
         1,                         /* Priority */
         NULL                       /* Task handle */
     );
-    CYASSERT(ret);
+    if (ret != RET_PASS)
+    {
+        vLoggingPrintfCritical("main | err: init spi-comms fail\r\n");
+        CYASSERT(FALSE);
+        for (;;);
+    }
     
     ret = xTaskCreate(
         vRCTask,                    /* Task function */
@@ -74,7 +86,12 @@ int main(void)
         1,                         /* Priority */
         NULL                       /* Task handle */
     );
-    CYASSERT(ret);
+    if (ret != RET_PASS)
+    {
+        vLoggingPrintfCritical("main | err: init rc-task fail\r\n");
+        CYASSERT(FALSE);
+        for (;;);
+    }
     
     ret = xTaskCreate(
         vSpeedMeasureTask,                   /* Task function */
@@ -84,7 +101,12 @@ int main(void)
         1,                         /* Priority */
         NULL                       /* Task handle */
     );
-    CYASSERT(ret);
+    if (ret != RET_PASS)
+    {
+        vLoggingPrintfCritical("main | err: init speed-read fail\r\n");
+        CYASSERT(FALSE);
+        for (;;);
+    }
 
     /* Start the scheduler */
     vTaskStartScheduler();
@@ -118,8 +140,7 @@ void vCommsTask( void* pvParameters )
     ( void ) pvParameters;
     
     for(;;)
-    {
-        
+    {        
         vTaskDelay( 1 );
     }
 }
@@ -128,7 +149,11 @@ void vCommsTask( void* pvParameters )
 void vRCTask( void* pvParameters )
 {
     ( void ) pvParameters;
-    RCInit();
+    BaseType_t ret = RCInit();
+    if ( ret != pdPASS )
+    {
+        vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | err: Could initialize RC car module\r\n");
+    }
     
     for(;;)
     {
@@ -145,7 +170,6 @@ void vSpeedMeasureTask( void* pvParameters )
     for(;;)
     {
         RCreadSpeedThread();
-        
     }
 }
 

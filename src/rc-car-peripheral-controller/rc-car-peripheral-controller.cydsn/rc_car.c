@@ -27,10 +27,14 @@ static uint32_t   speed_count;
 static void readTelemetry(void);
 
 
-void RCInit(void)
+uint8_t RCInit(void)
 {
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | err: Could not create mutex\r\n");
+    
     SPI_controller_start();
     start_Control = pdTRUE;
+    
+    return RET_PASS;
 }
 
 

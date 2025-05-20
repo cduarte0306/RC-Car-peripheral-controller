@@ -124,6 +124,10 @@ void SPI_controller_start(void)
     SPIS_ClearTxBuffer();
     
     regMap = getRegRef();
+    if (regMap  == NULL)
+    {
+        vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | err: Could not create mutex\r\n");
+    }
     CYASSERT(regMap != NULL);
     
     // Configure DMA for transmission

@@ -2,3 +2,7 @@
 	path = src/libraries/FreeRTOS
 	url = https://github.com/FreeRTOS/FreeRTOS.git
 	branch = main
+[submodule "src/libraries/embedded-cli"]
+	path = src/libraries/embedded-cli
+	url = https://github.com/funbiscuit/embedded-cli.git
+	branch = master

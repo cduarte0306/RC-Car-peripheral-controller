@@ -37,7 +37,7 @@ typedef struct
 } regMapType;
     
     
-void RCInit(void);
+uint8_t RCInit(void);
 void RCprocessTelemetry(void);
 void RCreadSpeedThread( void );
 regMapType* getRegRef(void);
