@@ -27,19 +27,42 @@ static uint32_t   speed_count;
 static void readTelemetry(void);
 
 
-void RCInit(void)
+/**
+ * @brief Initializes the RC car components
+ * 
+ * @return uint8_t RET_PASS on success, RET_FAIL on failure
+ */
+uint8_t RCInit(void)
 {
-    SPI_controller_start();
+    uint8 ret;
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing RC car\r\n");
+    
+    ret = SPI_controller_start();
+    if (!ret)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: RCInit | err: Could not configure SPI\r\n");
+    }
+    
     start_Control = pdTRUE;
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | RC Car initialized\r\n");
+    return RET_PASS;
 }
 
 
+/**
+ * @brief Processes telemetry data from the RC car
+ * 
+ */
 void RCprocessTelemetry(void)
 {
     readTelemetry();
 }
 
 
+/**
+ * @brief Reads the speed data from the RC car
+ * 
+ */
 void RCreadSpeedThread(void)
 {
     speed_count = RD_SPEED_DATA;
@@ -50,12 +73,21 @@ void RCreadSpeedThread(void)
 }
 
 
+/**
+ * @brief Gets the register map reference
+ * 
+ * @return regMapType* Pointer to the register map
+ */
 regMapType* getRegRef(void)
 {
     return regMap;
 }
 
 
+/**
+ * @brief Reads telemetry data from the RC car
+ * 
+ */
 static void readTelemetry(void)
 {
     regMap[REG_SPEED].data.u32 = speed_count;

@@ -109,8 +109,15 @@ CY_ISR(end_of_message_handler)
 }
 
 
-void SPI_controller_start(void)
+/**
+ * @brief Initializes the SPI controller
+ * 
+ * @return uint8_t RET_PASS on success, RET_FAIL on failure
+ */
+uint8_t SPI_controller_start(void)
 {
+    vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | Initializing SPI controller\r\n");
+    
     spi_rx_interrupt_Start();
     spi_rx_interrupt_StartEx( spi_rx_handler );
         
@@ -124,14 +131,32 @@ void SPI_controller_start(void)
     SPIS_ClearTxBuffer();
     
     regMap = getRegRef();
-    CYASSERT(regMap != NULL);
+    if (regMap == NULL)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: SPI_controller_start | err: Could not read register map\r\n");
+        return RET_FAIL;
+    }
     
     // Configure DMA for transmission
     memset((uint8*)&txBuffer, 0, sizeof(txBuffer));
-    CYASSERT(configDMA);
+    
+    uint8 ret = configDMA();
+    if (ret != RET_PASS)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: SPI_controller_start | err: Failed to configure DMA\r\n");
+        return RET_FAIL;
+    }
+    
+    vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | SPI controller initialized\r\n");
+    return RET_PASS;
 }
 
 
+/**
+ * @brief Configures the DMA for SPI transmission
+ * 
+ * @return uint8_t RET_PASS on success, RET_FAIL on failure
+ */
 static uint8_t configDMA(void)
 {
     cystatus ret;

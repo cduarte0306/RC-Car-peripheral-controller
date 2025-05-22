@@ -15,6 +15,8 @@
 
 #include "app_utils.h"
     
+#include "logging.h"
+    
     
 #if defined ( TIMESTAMP_INCLUDE_OK )
     #include "TREG0.h"

@@ -9,16 +9,16 @@
  *
  * ========================================
 */
-
-#ifndef SPI_CONTROLLER_H
-#define SPI_CONTROLLER_H
-
-#include <stdint.h>
-   
-
-uint8_t SPI_controller_start(void);
-void SPI_controller_process(void);
+#ifndef APP_CLI_H
+#define APP_CLI_H
     
-#endif
+#include "cytypes.h"
+    
+    
+/* Function declarations */
+uint8   APP_CLI_init      ( void );
+void   APP_CLI_update    ( void );
+uint32 APP_CLI_get_ticks ( void );
 
+#endif
 /* [] END OF FILE */
