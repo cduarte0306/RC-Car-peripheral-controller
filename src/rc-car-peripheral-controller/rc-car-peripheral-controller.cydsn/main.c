@@ -14,6 +14,7 @@
 
 #include "RCUtils.h"
 #include "rc_car.h"
+#include "app_cli.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -24,6 +25,13 @@ void vLEDMonitorTask(void *pvParameters);
 void vCommsTask( void* pvParameters );
 void vRCTask( void* pvParameters );
 void vSpeedMeasureTask( void* pvParameters );
+void vCliTask( void* pvParameters );
+
+xTaskHandle rc_car_handle   = NULL;
+xTaskHandle cli_handle      = NULL;
+xTaskHandle spi_coms_handle = NULL;
+xTaskHandle led_handle      = NULL;
+xTaskHandle speed_rd_handle = NULL;
 
 
 int main(void) 
@@ -54,7 +62,7 @@ int main(void)
         configMINIMAL_STACK_SIZE,  /* Stack size */
         NULL,                      /* Task input parameter */
         1,                         /* Priority */
-        NULL                       /* Task handle */
+        &led_handle                /* Task handle */
     );
     if (ret != RET_PASS)
     {
@@ -63,20 +71,24 @@ int main(void)
         for (;;);
     }
     
+    vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR,"main | init led-monitor\r\n");
+    
     ret = xTaskCreate(
         vCommsTask,                /* Task function */
         "spi-comms",               /* Task name (for debugging) */
         configMINIMAL_STACK_SIZE,  /* Stack size */
         NULL,                      /* Task input parameter */
         1,                         /* Priority */
-        NULL                       /* Task handle */
+        &spi_coms_handle           /* Task handle */
     );
     if (ret != RET_PASS)
     {
-        vLoggingPrintfCritical("main | err: init spi-comms fail\r\n");
+        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "main | err: init spi-comms fail\r\n");
         CYASSERT(FALSE);
         for (;;);
     }
+    
+    vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR,"main | init spi-comms\r\n");
     
     ret = xTaskCreate(
         vRCTask,                    /* Task function */
@@ -84,14 +96,16 @@ int main(void)
         configMINIMAL_STACK_SIZE,  /* Stack size */
         NULL,                      /* Task input parameter */
         1,                         /* Priority */
-        NULL                       /* Task handle */
+        &rc_car_handle             /* Task handle */
     );
     if (ret != RET_PASS)
     {
-        vLoggingPrintfCritical("main | err: init rc-task fail\r\n");
+        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "main | err: init rc-task fail\r\n");
         CYASSERT(FALSE);
         for (;;);
     }
+    
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR,"main | init rc-task\r\n");
     
     ret = xTaskCreate(
         vSpeedMeasureTask,                   /* Task function */
@@ -99,14 +113,33 @@ int main(void)
         configMINIMAL_STACK_SIZE,  /* Stack size */
         NULL,                      /* Task input parameter */
         1,                         /* Priority */
-        NULL                       /* Task handle */
+        &speed_rd_handle           /* Task handle */
     );
     if (ret != RET_PASS)
     {
-        vLoggingPrintfCritical("main | err: init speed-read fail\r\n");
+        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "main | err: init speed-read fail\r\n");
         CYASSERT(FALSE);
         for (;;);
     }
+    
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR,"main | init speed-read\r\n");
+    
+    ret = xTaskCreate(
+        vCliTask,                  /* Task function */
+        "app-cli",                 /* Task name (for debugging) */
+        configMINIMAL_STACK_SIZE,  /* Stack size */
+        NULL,                      /* Task input parameter */
+        1,                         /* Priority */
+        &cli_handle                /* Task handle */
+    );
+    if (ret != RET_PASS)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "main | err: app-cli\r\n");
+        CYASSERT(FALSE);
+        for (;;);
+    }
+    
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "main | init app-cli\\r\n");
 
     /* Start the scheduler */
     vTaskStartScheduler();
@@ -170,6 +203,25 @@ void vSpeedMeasureTask( void* pvParameters )
     for(;;)
     {
         RCreadSpeedThread();
+    }
+}
+
+
+void vCliTask( void* pvParameters )
+{
+    ( void ) pvParameters;
+    
+    BaseType_t ret = APP_CLI_init();
+    if (!ret)
+    {
+        vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: APP_CLI_init | err: Could initialize app CLI\r\n");
+        vTaskDelete(cli_handle);
+    }
+    
+    for(;;)
+    {
+        APP_CLI_update();
+        vTaskDelay(1);
     }
 }
 

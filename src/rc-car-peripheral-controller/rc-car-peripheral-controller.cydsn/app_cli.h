@@ -16,7 +16,7 @@
     
     
 /* Function declarations */
-void   APP_CLI_init      ( void );
+uint8   APP_CLI_init      ( void );
 void   APP_CLI_update    ( void );
 uint32 APP_CLI_get_ticks ( void );
 

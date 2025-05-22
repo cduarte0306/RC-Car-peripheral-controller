@@ -13,8 +13,10 @@
 #ifndef SPI_CONTROLLER_H
 #define SPI_CONTROLLER_H
 
+#include <stdint.h>
+   
 
-void SPI_controller_start(void);
+uint8_t SPI_controller_start(void);
 void SPI_controller_process(void);
     
 #endif
