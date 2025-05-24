@@ -68,6 +68,8 @@ static void write_char( EmbeddedCli *cli, char c );
 static void cmdRead( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context );
+static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context );
+
 
 /* For storing result from function calls */
 static uint8 ret;
@@ -113,6 +115,16 @@ static const CliCommandBinding cmd_bindings[] = {
             "\t\tset_motor_state <state>\r\n",
         
         TRUE, NULL, TRUE, FALSE, cmdSetMotorState
+    },
+    (CliCommandBinding){
+        "set_motor_on_off_state",
+        
+        "Configures the motor ON/OFF state\r\n"
+        "0: Manual\r\n"
+        "1: Automatic\r\n"
+            "\t\tset_motor_on_off_state <state>\r\n",
+        
+        TRUE, NULL, TRUE, FALSE, cmdSetMotorOnOffState
     },
     (CliCommandBinding){
         "set_motor_speed_sp",
@@ -322,7 +334,7 @@ static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context )
         return;
     }
     
-    regMap[REG_SET_MOTOR_STATUS].data.u32 = state;
+    regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32 = state;
 }
 
 
@@ -340,7 +352,7 @@ static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context )
     }
     
     char *endPtr = NULL;
-    uint8_t speed = strtoul(arg1, &endPtr, 10);
+    uint32_t speed = strtoul(arg1, &endPtr, 10);
     if (*endPtr != '\0')
     {
         vPrintf("Error: Invalid numeric argument '%s'\n", arg1);
@@ -355,6 +367,38 @@ static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context )
     }
     
     regMap[REG_SPEED_SETPOINT].data.u32 = speed;
+}
+
+
+static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    
+    const char *arg1 = embeddedCliGetToken(args, 1);
+    
+    if (arg1 == NULL)
+    {
+        vPrintf("Error: No argument provided");
+        return;
+    }
+    
+    char *endPtr = NULL;
+    uint8_t state = strtoul(arg1, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid numeric argument '%s'\n", arg1);
+        return;
+    }
+
+    regMapType* regMap = getRegRef();
+    if (regMap == NULL)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: cmdSetMotorSpeed | err: Could not read register map\r\n");
+        return;
+    }
+    
+    regMap[REG_MOTOR_ONOFF_STATE].data.u32 = state;
 }
 
 /* [] END OF FILE */

@@ -124,6 +124,30 @@ uint8 MotorCtrlsetSpeedSetPoint(uint32_t speedSetPoint_)
 
 
 /**
+ * @brief Sets the on/off state of the motor.
+ * 
+ * @param onOffState The desired state (MOTOR_ON or MOTOR_OFF).
+ * @return uint8_t RET_PASS on success, RET_FAIL on failure.
+ */
+uint8 MotorCtrlSetOnOffState(uint8_t onOffState)
+{
+    if (onOffState == MOTOR_ON)
+    {
+        CY_SET_REG16(PWM_Motor_COMPARE1_LSB_PTR, 0);
+        PWM_Motor_Start();
+        vLoggingPrintf(DEBUG_INFO, LOG_MOTOR, "app: MotorCtrlSetOnOffState | Motor started\r\n");
+    }
+    else
+    {
+        PWM_Motor_Stop();
+        vLoggingPrintf(DEBUG_INFO, LOG_MOTOR, "app: MotorCtrlSetOnOffState | Motor stopped\r\n");
+    }
+    
+    return RET_PASS;
+}
+
+
+/**
  * @brief Performs cruise control calculations based on the current speed and set point.
  * 
  * @param speed Current speed of the motor.

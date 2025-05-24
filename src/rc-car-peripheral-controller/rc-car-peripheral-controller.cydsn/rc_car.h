@@ -35,7 +35,8 @@ typedef enum
 
 typedef enum
 {
-    REG_SET_MOTOR_STATUS = REG_RO_END,
+    REG_MOTOR_ONOFF_STATE  = REG_RO_END,
+    REG_SET_MOTOR_CTRL_STATUS,
     REG_SPEED_SETPOINT,
     REG_PID_P,
     REG_PID_I,

@@ -71,10 +71,12 @@ void RcProcess(void)
     readTelemetry();
     
     // Process the values in the registers
+    MotorCtrlSetOnOffState(regMap[REG_MOTOR_ONOFF_STATE].data.u8);
     MotorCtrlsetSpeedSetPoint(regMap[REG_SPEED_SETPOINT].data.u32);
-    MotorCtrlSetState(regMap[REG_SET_MOTOR_STATUS].data.u32);
+    MotorCtrlSetState(regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32);
     
     MotrorCtrlProcess(regMap[REG_SPEED].data.u32);
+
 }
 
 
