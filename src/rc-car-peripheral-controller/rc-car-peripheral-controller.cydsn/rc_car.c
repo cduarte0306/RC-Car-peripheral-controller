@@ -13,6 +13,7 @@
 #include "rc_car.h"
 #include "RCUtils.h"
 #include "spi_controller.h"
+#include "motor_driver.h"
 
 #include <project.h>
 
@@ -20,7 +21,7 @@
 #define RD_SPEED_DATA   (speed_msb_Status << 8U) | ( speed_lsb_Status )
 
 
-static regMapType regMap[ REG_END ];
+static regMapType regMap[ REG_WR_END ];
 static uint32_t   speed_count;
 
 
@@ -43,6 +44,18 @@ uint8_t RCInit(void)
         vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: RCInit | err: Could not configure SPI\r\n");
     }
     
+    MotorCtrlInit();
+    
+    for (uint8 idx = REG_NOOP; idx < REG_RO_END; idx++)
+    {
+        regMap[idx].regType = READ_ONLY;
+    }
+    
+    for (uint8 idx = REG_RO_END; idx < REG_WR_END; idx++)
+    {
+        regMap[idx].regType = READ_WRITE;
+    }
+    
     start_Control = pdTRUE;
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | RC Car initialized\r\n");
     return RET_PASS;
@@ -53,9 +66,17 @@ uint8_t RCInit(void)
  * @brief Processes telemetry data from the RC car
  * 
  */
-void RCprocessTelemetry(void)
+void RcProcess(void)
 {
     readTelemetry();
+    
+    // Process the values in the registers
+    MotorCtrlSetOnOffState(regMap[REG_MOTOR_ONOFF_STATE].data.u8);
+    MotorCtrlsetSpeedSetPoint(regMap[REG_SPEED_SETPOINT].data.u32);
+    MotorCtrlSetState(regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32);
+    
+    MotrorCtrlProcess(regMap[REG_SPEED].data.u32);
+
 }
 
 
@@ -63,7 +84,7 @@ void RCprocessTelemetry(void)
  * @brief Reads the speed data from the RC car
  * 
  */
-void RCreadSpeedThread(void)
+void RcReadSpeedThread(void)
 {
     speed_count = RD_SPEED_DATA;
     

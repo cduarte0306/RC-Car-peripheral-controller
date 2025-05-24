@@ -10,6 +10,7 @@
  * ========================================
 */
 
+#include <stdlib.h>
 #include "app_cli.h"
 
 #include "project.h"
@@ -18,6 +19,7 @@
 #include "rc_car.h"
 
 #include "rc_car.h"
+#include "motor_driver.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -64,6 +66,10 @@ static void Rx_ISR_InterruptCallback( void );
 
 static void write_char( EmbeddedCli *cli, char c );
 static void cmdRead( EmbeddedCli *cli, char *args, void *context );
+static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context );
+static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context );
+static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context );
+
 
 /* For storing result from function calls */
 static uint8 ret;
@@ -99,8 +105,35 @@ static const CliCommandBinding cmd_bindings[] = {
             "\t\tread-cmd\r\n",
         
         FALSE, NULL, TRUE, FALSE, cmdRead
-    }
-    
+    },
+    (CliCommandBinding){
+        "set_motor_state",
+        
+        "Configures the motor state\r\n"
+        "0: Manual\r\n"
+        "1: Automatic\r\n"
+            "\t\tset_motor_state <state>\r\n",
+        
+        TRUE, NULL, TRUE, FALSE, cmdSetMotorState
+    },
+    (CliCommandBinding){
+        "set_motor_on_off_state",
+        
+        "Configures the motor ON/OFF state\r\n"
+        "0: Manual\r\n"
+        "1: Automatic\r\n"
+            "\t\tset_motor_on_off_state <state>\r\n",
+        
+        TRUE, NULL, TRUE, FALSE, cmdSetMotorOnOffState
+    },
+    (CliCommandBinding){
+        "set_motor_speed_sp",
+        
+        "Configures motor speed setpoint\r\n"
+            "\t\tset_motor_speed_sp <speed>\r\n",
+        
+        TRUE, NULL, TRUE, FALSE, cmdSetMotorSpeed
+    },
 };
 
 
@@ -238,22 +271,6 @@ static void write_char( EmbeddedCli *cli, char c )
 }
 
 
-static void cmdRead( EmbeddedCli *cli, char *args, void *context )
-{
-    ( void ) cli;
-    ( void ) context;
-    ( void ) args;
-    
-    const regMapType* regMap = getRegRef();
-    if (regMap == NULL)
-    {
-        return;
-    }
-    
-    vPrintf("Motor speed: %lu\r\n", regMap[REG_SPEED].data.u32);
-}
-
-
 #if ( USE_INTERRUPT == 1 )
 /**
  * @brief Processes UART Rx interrupt call
@@ -272,5 +289,116 @@ static void Rx_ISR_InterruptCallback( void )
 }
 #endif
 
+
+static void cmdRead( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    ( void ) args;
+    
+    const regMapType* regMap = getRegRef();
+    if (regMap == NULL)
+    {
+        return;
+    }
+    
+    vPrintf("Motor speed: %lu\r\n", regMap[REG_SPEED].data.u32);
+}
+
+
+static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    
+    const char *arg1 = embeddedCliGetToken(args, 1);
+    
+    if (arg1 == NULL)
+    {
+        vPrintf("Error: No argument provided");
+        return;
+    }
+    
+    char *endPtr = NULL;
+    uint8_t state = strtoul(arg1, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid numeric argument '%s'\n", arg1);
+        return;
+    }
+    
+    regMapType* regMap = getRegRef();
+    if (regMap == NULL)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: cmdSetMotorState | err: Could not read register map\r\n");
+        return;
+    }
+    
+    regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32 = state;
+}
+
+
+static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    
+    const char *arg1 = embeddedCliGetToken(args, 1);
+    
+    if (arg1 == NULL)
+    {
+        vPrintf("Error: No argument provided");
+        return;
+    }
+    
+    char *endPtr = NULL;
+    uint32_t speed = strtoul(arg1, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid numeric argument '%s'\n", arg1);
+        return;
+    }
+
+    regMapType* regMap = getRegRef();
+    if (regMap == NULL)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: cmdSetMotorSpeed | err: Could not read register map\r\n");
+        return;
+    }
+    
+    regMap[REG_SPEED_SETPOINT].data.u32 = speed;
+}
+
+
+static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    
+    const char *arg1 = embeddedCliGetToken(args, 1);
+    
+    if (arg1 == NULL)
+    {
+        vPrintf("Error: No argument provided");
+        return;
+    }
+    
+    char *endPtr = NULL;
+    uint8_t state = strtoul(arg1, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid numeric argument '%s'\n", arg1);
+        return;
+    }
+
+    regMapType* regMap = getRegRef();
+    if (regMap == NULL)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: cmdSetMotorSpeed | err: Could not read register map\r\n");
+        return;
+    }
+    
+    regMap[REG_MOTOR_ONOFF_STATE].data.u32 = state;
+}
 
 /* [] END OF FILE */

@@ -190,7 +190,7 @@ void vRCTask( void* pvParameters )
     
     for(;;)
     {
-        RCprocessTelemetry();
+        RcProcess();
         vTaskDelay( 100 );
     }
 }
@@ -202,7 +202,7 @@ void vSpeedMeasureTask( void* pvParameters )
     
     for(;;)
     {
-        RCreadSpeedThread();
+        RcReadSpeedThread();
     }
 }
 
@@ -217,7 +217,7 @@ void vCliTask( void* pvParameters )
         vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: APP_CLI_init | err: Could initialize app CLI\r\n");
         vTaskDelete(cli_handle);
     }
-    
+
     for(;;)
     {
         APP_CLI_update();
