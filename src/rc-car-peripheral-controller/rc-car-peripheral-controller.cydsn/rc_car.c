@@ -74,7 +74,7 @@ void RcProcess(void)
     MotorCtrlsetSpeedSetPoint(regMap[REG_SPEED_SETPOINT].data.u32);
     MotorCtrlSetState(regMap[REG_SET_MOTOR_STATUS].data.u32);
     
-    MotorCtrlMonitor(regMap[REG_SPEED].data.u32);
+    MotrorCtrlProcess(regMap[REG_SPEED].data.u32);
 }
 
 

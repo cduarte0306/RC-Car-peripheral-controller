@@ -35,7 +35,7 @@ void MotorCtrlSetState(uint8_t state_);
 uint8 MotorCtrlsetSpeedSetPoint(uint32_t speedSetPoint_);
 uint8 setSpeedSetPoint(uint32_t speedSetPoint_);
 uint8 MotorCtrlSetPid(pid_t* pid_);
-void MotorCtrlMonitor(uint32_t speed);
+void MotrorCtrlProcess(uint32_t speed);
     
 #endif
 
