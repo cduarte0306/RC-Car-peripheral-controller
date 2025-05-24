@@ -32,6 +32,8 @@ void MotorCtrlInit(void)
 {
     PWM_Motor_Start();
     PWM_Motor_WriteCompare(0);
+    
+    vLoggingPrintf(DEBUG_INFO, LOG_MOTOR, "app: MotorCtrlInit | Motor initialized\r\n");
 }
 
 
@@ -101,7 +103,7 @@ static float doCruiseControl(uint32_t speed)
     int err = speedSetPoint - speed;
     uint32_t timeNow = xGetTimestamp();
     
-    float tDelta = (float)(timeNow - lastTime) / 1000.0f;  // Convert ms to seconds if necessary
+    float tDelta = (float)(timeNow - lastTime) / 1000.0f;  // Convert ms to seconds
     float proportional = pid.kp * (float)err;
     integral += pid.ki * (float)err * tDelta;
     
