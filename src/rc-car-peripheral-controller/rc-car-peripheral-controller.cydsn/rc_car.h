@@ -23,12 +23,25 @@
 typedef enum
 {
     REG_NOOP,
+    REG_VER_MAJOR,
+    REG_VER_MINOR,
+    REG_VER_BUILD,
     REG_SPEED,
     REG_FRONT_DISTANCE,
     REG_LEFT_DISTANCE,
     REG_RIGHT_DISTANCE,
-    REG_END
-} registerEnums;
+    REG_RO_END
+} registerEnumsReadOnly;
+
+typedef enum
+{
+    REG_SET_MOTOR_STATUS = REG_RO_END,
+    REG_SPEED_SETPOINT,
+    REG_PID_P,
+    REG_PID_I,
+    REG_PID_D,
+    REG_WR_END,
+} registerEnumReadWrites;
 
 typedef struct 
 {
@@ -38,8 +51,8 @@ typedef struct
     
     
 uint8_t RCInit(void);
-void RCprocessTelemetry(void);
-void RCreadSpeedThread( void );
+void RcProcess(void);
+void RcReadSpeedThread( void );
 regMapType* getRegRef(void);
     
     
