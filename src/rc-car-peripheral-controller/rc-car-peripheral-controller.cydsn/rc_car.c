@@ -14,6 +14,7 @@
 #include "RCUtils.h"
 #include "spi_controller.h"
 #include "motor_driver.h"
+#include "vers.h"
 
 #include <project.h>
 
@@ -21,6 +22,7 @@
 #define RD_SPEED_DATA   (speed_msb_Status << 8U) | ( speed_lsb_Status )
 
 
+static uint32_t lastSpeed = 0;
 static regMapType regMap[ REG_WR_END ];
 static uint32_t   speed_count;
 
@@ -56,7 +58,12 @@ uint8_t RCInit(void)
         regMap[idx].regType = READ_WRITE;
     }
     
-    start_Control = pdTRUE;
+    // Set the version in the registers
+    getVers(&regMap[REG_VER_MAJOR].data.u8, &regMap[REG_VER_MINOR].data.u8, &regMap[REG_VER_BUILD].data.u8);
+    
+    regMap[REG_NOOP].data.u32 = 0;
+    
+    encoder_counter_Start();
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | RC Car initialized\r\n");
     return RET_PASS;
 }
@@ -86,11 +93,9 @@ void RcProcess(void)
  */
 void RcReadSpeedThread(void)
 {
-    speed_count = RD_SPEED_DATA;
-    
-    start_Control = pdFALSE;
-    vTaskDelay(100);  // Delay 100ms (10Hz sampling rate)
-    start_Control = pdTRUE;
+    regMap[REG_SPEED].data.u32 = encoder_counter_ReadCounter();
+    encoder_counter_WriteCounter(0);
+    vTaskDelay(100);
 }
 
 
