@@ -65,7 +65,8 @@ static void Rx_ISR_InterruptCallback( void );
 #endif
 
 static void write_char( EmbeddedCli *cli, char c );
-static void cmdRead( EmbeddedCli *cli, char *args, void *context );
+static void cmdReadReg( EmbeddedCli *cli, char *args, void *context );
+static void cmdWriteReg( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context );
@@ -99,12 +100,20 @@ static const CliCommandBinding cmd_bindings[] = {
      *          Binding function for when command is received.
      */
     (CliCommandBinding){
-        "read-cmd",
+        "read-cmd-reg",
         
-        "Displays telemetry data\r\n"
-            "\t\tread-cmd\r\n",
+        "Reads from the register\r\n"
+            "\t\tread-cmd <register>\r\n",
         
-        FALSE, NULL, TRUE, FALSE, cmdRead
+        FALSE, NULL, TRUE, FALSE, cmdReadReg
+    },
+    (CliCommandBinding){
+        "write-cmd-reg",
+        
+        "Write to the register\r\n"
+            "\t\twrite-cmd <register> <value>\r\n",
+        
+        TRUE, NULL, TRUE, FALSE, cmdWriteReg
     },
     (CliCommandBinding){
         "set_motor_state",
@@ -290,11 +299,26 @@ static void Rx_ISR_InterruptCallback( void )
 #endif
 
 
-static void cmdRead( EmbeddedCli *cli, char *args, void *context )
+static void cmdReadReg( EmbeddedCli *cli, char *args, void *context )
 {
     ( void ) cli;
     ( void ) context;
-    ( void ) args;
+    
+    const char *arg1 = embeddedCliGetToken(args, 1);
+    
+    if (arg1 == NULL)
+    {
+        vPrintf("Error: No argument provided\r\n");
+        return;
+    }
+    
+    char *endPtr = NULL;
+    uint8_t reg = strtoul(arg1, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid numeric argument '%s'\n", arg1);
+        return;
+    }
     
     const regMapType* regMap = getRegRef();
     if (regMap == NULL)
@@ -302,7 +326,53 @@ static void cmdRead( EmbeddedCli *cli, char *args, void *context )
         return;
     }
     
-    vPrintf("Motor speed: %lu\r\n", regMap[REG_SPEED].data.u32);
+    vPrintf("Reg value: %lu\r\n", regMap[reg].data.u32);
+}
+
+
+static void cmdWriteReg( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    
+    const char *reg_ = embeddedCliGetToken(args, 1);
+    
+    if (reg_ == NULL)
+    {
+        vPrintf("Error: No argument provided\r\n");
+        return;
+    }
+    
+    const char *val_ = embeddedCliGetToken(args, 2);
+    
+    if (val_ == NULL)
+    {
+        vPrintf("Error: No argument provided\r\n");
+        return;
+    }
+    
+    char *endPtr = NULL;
+    uint8_t reg = strtoul(reg_, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid numeric argument '%s'\n", reg_);
+        return;
+    }
+    
+    uint32_t val = strtoul(val_, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid register value '%s'\n", reg_);
+        return;
+    }
+    
+    regMapType* regMap = getRegRef();
+    if (regMap == NULL)
+    {
+        return;
+    }
+    
+    regMap[reg].data.u32 = val;
 }
 
 
