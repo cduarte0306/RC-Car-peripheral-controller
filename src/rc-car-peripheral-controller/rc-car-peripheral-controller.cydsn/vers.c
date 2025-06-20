@@ -15,7 +15,7 @@
 
 
 uint8_t major_ = 1;
-uint8_t minor_ = 0;
+uint8_t minor_ = 1;
 uint8_t build_ = 0;
 
 
