@@ -154,8 +154,12 @@ regMapType* getRegRef(void)
  */
 static void readTelemetry(void)
 {
-    regMap[REG_SPEED        ].data.u32 = speed_count;
-    regMap[REG_LEFT_DISTANCE].data.u32 = leftDistance / 58;
+    regMap[REG_SPEED         ].data.u32 = speed_count;
+    regMap[REG_LEFT_DISTANCE ].data.u32 = leftDistance  / 58;
+    regMap[REG_RIGHT_DISTANCE].data.u32 = rightDistance / 58;
+    regMap[REG_FRONT_DISTANCE].data.u32 = frontDistance / 58;
+    
+    // vPrintf("Left: %lu\r\nRight: %lu\r\nFront: %lu\r\n", regMap[REG_LEFT_DISTANCE ].data.u32, regMap[REG_RIGHT_DISTANCE ].data.u32, regMap[REG_FRONT_DISTANCE ].data.u32);
 }
 
 
