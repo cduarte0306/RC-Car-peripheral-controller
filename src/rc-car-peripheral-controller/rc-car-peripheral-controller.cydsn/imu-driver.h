@@ -29,6 +29,7 @@ uint8_t IMU_reset(void);
 uint8_t IMU_wake(void);
 uint8_t IMU_detect(void);
 uint8_t IMU_initialize(void);
+uint8_t IMU_clearInt(void);
 uint8_t IMU_readAll(IMU_Data_t *data);
 
 /* [] END OF FILE */

@@ -367,6 +367,36 @@ uint8_t IMU_initialize(void)
 }
 
 
+uint8_t IMU_clearInt(void)
+{
+    uint8 ret = RET_FAIL;
+    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
+    
+    buffer[0] = REG_INT_STATUS;
+    ret = I2C_MasterWriteBuf(IMU_ADDRESS, (uint8 *) &buffer[0], sizeof(buffer[0]), I2C_MODE_NO_STOP);
+    if (ret != I2C_MSTR_NO_ERROR)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: IMU_detect | err: Failed to read I2C\r\n");
+        
+        I2C_MasterClearReadBuf();
+        I2C_MasterClearWriteBuf();
+        return RET_FAIL;
+    }
+    
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+    
+    buffer[0] = 0;
+    ret = I2C_MasterReadBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_REPEAT_START);
+    if (ret != I2C_MSTR_NO_ERROR)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: %s | err: Failed to read I2C\r\n", __FUNCTION__);
+        return RET_FAIL;
+    }
+    buffer[0] = 0;
+    return RET_PASS;
+}
+
+
 uint8_t IMU_readAll(IMU_Data_t *data)
 {
     if(!data)

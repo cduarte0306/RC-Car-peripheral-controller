@@ -194,8 +194,6 @@ static void readIMU(void)
         return; // IMU not ready
     }
     
-    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: readIMU | reading IMU...\r\n");
-    
     IMU_Data_t imuData;
     IMU_readAll(&imuData);
     
@@ -207,6 +205,11 @@ static void readIMU(void)
     regMap[REG_GYRO_Z      ].data.f32 = imuData.gyro_z / 16.4f;          // °/s
     regMap[REG_TEMPERATURE ].data.f32 = (imuData.temperature / 333.87f) + 21.0f; // °C
     
+    uint8_t ret = IMU_clearInt();
+    if(ret != RET_PASS)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: Failed to clear IMU interrupt\r\n", __FUNCTION__);
+    }
     imuDataReady = FALSE;
 }
 
