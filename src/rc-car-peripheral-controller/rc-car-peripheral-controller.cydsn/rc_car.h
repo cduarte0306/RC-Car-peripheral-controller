@@ -30,6 +30,16 @@ typedef enum
     REG_FRONT_DISTANCE,
     REG_LEFT_DISTANCE,
     REG_RIGHT_DISTANCE,
+    
+    // IMU Registers
+    REG_ACCEL_X,
+    REG_ACCEL_Y,
+    REG_ACCEL_Z,
+    REG_GYRO_X,
+    REG_GYRO_Y,
+    REG_GYRO_Z,
+    REG_TEMPERATURE,
+    
     REG_RO_END
 } registerEnumsReadOnly;
 
