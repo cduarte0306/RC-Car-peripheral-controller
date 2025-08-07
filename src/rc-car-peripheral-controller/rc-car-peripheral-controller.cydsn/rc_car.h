@@ -38,6 +38,9 @@ typedef enum
     REG_GYRO_X,
     REG_GYRO_Y,
     REG_GYRO_Z,
+    MAG_GYRO_X,
+    MAG_GYRO_Y,
+    MAG_GYRO_Z,
     REG_TEMPERATURE,
     
     REG_RO_END

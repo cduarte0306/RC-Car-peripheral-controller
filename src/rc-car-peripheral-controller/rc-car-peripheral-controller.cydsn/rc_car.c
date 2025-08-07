@@ -189,7 +189,7 @@ static void readTelemetry(void)
 
 static void readIMU(void)
 {
-    if(!imuDataReady)
+    if(!imuDataReady || !imuPresent)
     {
         return; // IMU not ready
     }
@@ -203,8 +203,10 @@ static void readIMU(void)
     regMap[REG_GYRO_X      ].data.f32 = imuData.gyro_x / 16.4f;          // °/s
     regMap[REG_GYRO_Y      ].data.f32 = imuData.gyro_y / 16.4f;          // °/s
     regMap[REG_GYRO_Z      ].data.f32 = imuData.gyro_z / 16.4f;          // °/s
+
     regMap[REG_TEMPERATURE ].data.f32 = (imuData.temperature / 333.87f) + 21.0f; // °C
-    
+
+    // Clear the interrupt
     uint8_t ret = IMU_clearInt();
     if(ret != RET_PASS)
     {

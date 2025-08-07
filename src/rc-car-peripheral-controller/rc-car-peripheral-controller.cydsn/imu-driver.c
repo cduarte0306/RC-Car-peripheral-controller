@@ -12,7 +12,9 @@
 #include "imu-driver.h"
 #include "RCUtils.h"
 
-#define IMU_ADDRESS 0x68  // Device address
+// I2C Addresses
+#define IMU_ADDRESS 0x68  // IMU device address
+#define MAG_ADDRESS 0x0C  // Magnetometer address
 
 // Register definitions
 //======================================================
@@ -149,6 +151,38 @@
 
 #define IMU_ID  (0x71)  // Expected IMU ID
 
+// Magnetometer registers
+#define MAG_REG_WIA            0x00  // Device ID (should be 0x48)
+#define MAG_REG_INFO           0x01
+#define MAG_REG_ST1            0x02  // Data Ready Status
+#define MAG_REG_HXL            0x03  // X-axis LSB
+#define MAG_REG_HXH            0x04
+#define MAG_REG_HYL            0x05
+#define MAG_REG_HYH            0x06
+#define MAG_REG_HZL            0x07
+#define MAG_REG_HZH            0x08
+#define MAG_REG_ST2            0x09  // Overflow, data validity
+#define MAG_REG_CNTL1          0x0A  // Power mode & resolution
+#define MAG_REG_CNTL2          0x0B  // Soft reset
+#define MAG_REG_ASTC           0x0C  // Self test
+#define MAG_REG_I2CDIS         0x0F  // I2C disable for SPI
+#define MAG_REG_ASAX           0x10  // X-axis sensitivity adj
+#define MAG_REG_ASAY           0x11
+#define MAG_REG_ASAZ           0x12
+
+// AK8963 Address when accessed via MPU9250 internal I2C master
+#define AK8963_I2C_ADDR    0x0C
+
+#define REG_USER_CTRL         0x6A  // Bit 5 = I2C_MST_EN
+#define REG_I2C_MST_CTRL      0x24  // I2C master clock control
+
+#define REG_I2C_SLV0_ADDR     0x25  // Slave 0 address (read/write bit included)
+#define REG_I2C_SLV0_REG      0x26  // Slave 0 starting register
+#define REG_I2C_SLV0_CTRL     0x27  // Slave 0 control (enable, number of bytes)
+#define REG_I2C_SLV0_DO       0x63  // Slave 0 data output (for write)
+
+#define REG_EXT_SENS_DATA_00  0x49  // External sensor data starts here (magnetometer data shows up here)
+
 
 static uint8_t buffer[32] = {0};
 
@@ -237,132 +271,150 @@ uint8_t IMU_initialize(void)
     //===========================================
     buffer[0] = REG_WHO_AM_I;
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_NO_STOP);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write WHO_AM_I\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
     ret = I2C_MasterReadBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_REPEAT_START);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to read WHO_AM_I\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
 
-    if (buffer[0] != 0x71)  // Corrected to actual WHO_AM_I value
-    {
+    if (buffer[0] != 0x71) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Invalid WHO_AM_I: 0x%02X\r\n", buffer[0]);
         return RET_FAIL;
     }
 
     //===========================================
-    // 2. Configure Gyroscope (±2000°/s)
+    // 2–7. IMU Sensor Configuration (same as before)
     //===========================================
+    // Gyro config
     buffer[0] = REG_GYRO_CONFIG;
-    buffer[1] = (3 << 3);  // FS_SEL=11 -> ±2000°/s
+    buffer[1] = (3 << 3);
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write GYRO_CONFIG\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
-    //===========================================
-    // 3. Configure Accelerometer (±16g)
-    //===========================================
+    // Accel config
     buffer[0] = REG_ACCEL_CONFIG;
-    buffer[1] = (3 << 3);  // AFS_SEL=11 -> ±16g
+    buffer[1] = (3 << 3);
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write ACCEL_CONFIG\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
-    //===========================================
-    // 4. Configure Accelerometer DLPF
-    //===========================================
+    // Accel DLPF
     buffer[0] = REG_ACCEL_CONFIG2;
-    buffer[1] = (0 << 3) | (3);  // FCHOICE_B=0, DLPF=3
+    buffer[1] = (0 << 3) | (3);
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write ACCEL_CONFIG2\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
-    //===========================================
-    // 5. Configure Gyroscope DLPF
-    //===========================================
+    // Gyro DLPF
     buffer[0] = REG_CONFIG;
-    buffer[1] = 0x03;  // Gyro DLPF = 44.8Hz
+    buffer[1] = 0x03;
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write CONFIG\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
-    //===========================================
-    // 6. Set Sample Rate Divider
-    //===========================================
+    // Sample rate = 1kHz / (1 + 9) = 100Hz
     buffer[0] = REG_SMPLRT_DIV;
-    buffer[1] = 9;  // 100Hz sample rate
+    buffer[1] = 9;
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write SMPLRT_DIV\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
-    //===========================================
-    // 7. Enable All Axes
-    //===========================================
+    // Enable all axes
     buffer[0] = REG_PWR_MGMT_2;
     buffer[1] = 0x00;
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write PWR_MGMT_2\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
     //===========================================
-    // 8. Configure Interrupt Pin
+    // 8. Configure INT pin (do NOT set BYPASS_EN)
     //===========================================
     buffer[0] = REG_INT_PIN_CFG;
-    buffer[1] = (1 << 7) | (0 << 6) | (1 << 5) | (1 << 4);  // Push-pull, active low
+    buffer[1] = (1 << 7) | (0 << 6) | (1 << 5) | (1 << 4) | (1 << 1);  // Latch, clear on read, active low, push-pull
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write INT_PIN_CFG\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
     //===========================================
-    // 9. Enable Data Ready Interrupt
+    // 9. Enable IMU Interrupt (data ready)
     //===========================================
     buffer[0] = REG_INT_ENABLE;
-    buffer[1] = (1 << 0);  // Enable data-ready interrupt
+    buffer[1] = (1 << 0);
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
+    if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write INT_ENABLE\r\n");
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
+    //===========================================
+    // 10. Read magnetometer ID
+    //===========================================
+    buffer[0] = MAG_REG_WIA;
+    ret = I2C_MasterWriteBuf(AK8963_I2C_ADDR, (uint8 *) &buffer[0], sizeof(buffer[0]), I2C_MODE_NO_STOP);
+    if (ret != I2C_MSTR_NO_ERROR)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: IMU_detect | err: Failed to read I2C\r\n");
+        
+        I2C_MasterClearReadBuf();
+        I2C_MasterClearWriteBuf();
+        return RET_FAIL;
+    }
     
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+    
+    buffer[0] = 0;
+    buffer[1] = 0;
+    ret = I2C_MasterReadBuf(AK8963_I2C_ADDR, buffer, 1, I2C_MODE_REPEAT_START);
+    if (ret != I2C_MSTR_NO_ERROR)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: IMU_detect | err: Failed to read I2C\r\n");
+        return RET_FAIL;
+    }
+    
+    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
+    vLoggingPrintf(DEBUG_INFO, LOG_IMU, "app: IMU_detect | AK8963 ID: 0x%02X\r\n", buffer[0]);
+    
+    //===========================================
+    // 10. Configure magnetometer for continuous measurement
+    //===========================================
+    buffer[0] = MAG_REG_CNTL1;
+    buffer[1] = 0x16;
+    ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
+    if (ret != I2C_MSTR_NO_ERROR) {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write MAG_REG_CNTL1\r\n");
+        return RET_FAIL;
+    }
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
     return RET_PASS;
 }
 
@@ -397,40 +449,90 @@ uint8_t IMU_clearInt(void)
 }
 
 
-uint8_t IMU_readAll(IMU_Data_t *data)
+uint8_t IMU_readAll(IMU_Data_t* imuData)
 {
-    if(!data)
-        return RET_FAIL;
+    if(!imuData) return RET_FAIL;
     
     uint8_t ret = RET_FAIL;
 
-    // Start register: ACCEL_XOUT_H (0x3B), read 14 bytes
+    // Read 14 bytes: accel (6) + temp (2) + gyro (6)
     buffer[0] = REG_ACCEL_XOUT_H;
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_NO_STOP);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "IMU_readAll | Failed to write start reg\r\n");
-        return RET_FAIL;
-    }
+    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
 
     ret = I2C_MasterReadBuf(IMU_ADDRESS, buffer, 14, I2C_MODE_REPEAT_START);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "IMU_readAll | Failed to read sensor data\r\n");
-        return RET_FAIL;
-    }
+    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
     while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
 
-    // Combine high and low bytes (signed 16-bit values)
-    data->accel_x     = (int16_t)((buffer[0]  << 8) | buffer[1]);
-    data->accel_y     = (int16_t)((buffer[2]  << 8) | buffer[3]);
-    data->accel_z     = (int16_t)((buffer[4]  << 8) | buffer[5]);
-    data->temperature = (int16_t)((buffer[6]  << 8) | buffer[7]);
-    data->gyro_x      = (int16_t)((buffer[8]  << 8) | buffer[9]);
-    data->gyro_y      = (int16_t)((buffer[10] << 8) | buffer[11]);
-    data->gyro_z      = (int16_t)((buffer[12] << 8) | buffer[13]);
+    imuData->accel_x     = (int16_t)((buffer[0] << 8) | buffer[1]);
+    imuData->accel_y     = (int16_t)((buffer[2] << 8) | buffer[3]);
+    imuData->accel_z     = (int16_t)((buffer[4] << 8) | buffer[5]);
+    imuData->temperature = (int16_t)((buffer[6] << 8) | buffer[7]);
+    imuData->gyro_x      = (int16_t)((buffer[8] << 8) | buffer[9]);
+    imuData->gyro_y      = (int16_t)((buffer[10] << 8) | buffer[11]);
+    imuData->gyro_z      = (int16_t)((buffer[12] << 8) | buffer[13]);
 
+    // Now read magnetometer data (from external sensor register block)
+//    buffer[0] = REG_EXT_SENS_DATA_00;  // First external sensor register (mag_x low byte)
+//    ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_NO_STOP);
+//    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
+//    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+//
+//    ret = I2C_MasterReadBuf(IMU_ADDRESS, buffer, 6, I2C_MODE_REPEAT_START);
+//    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
+//    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
+//
+//    imuData->mag_x = (int16_t)((buffer[1] << 8) | buffer[0]);  // Note: Little-endian!
+//    imuData->mag_y = (int16_t)((buffer[3] << 8) | buffer[2]);
+//    imuData->mag_z = (int16_t)((buffer[5] << 8) | buffer[4]);
+
+    return RET_PASS;
+}
+
+
+uint8_t IMU_magReady(void)
+{
+    uint8 ret = RET_FAIL;
+    
+    buffer[0] = MAG_REG_ST1;
+    ret = I2C_MasterWriteBuf(IMU_ADDRESS, (uint8 *) &buffer[0], sizeof(buffer[0]), I2C_MODE_NO_STOP);
+    if (ret != I2C_MSTR_NO_ERROR)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: %s | err: Failed to read Magnetometer ready\r\n", __FUNCTION__);
+        
+        I2C_MasterClearReadBuf();
+        I2C_MasterClearWriteBuf();
+        return RET_FAIL;
+    }
+    
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+    
+    buffer[0] = 0;
+    buffer[1] = 0;
+    ret = I2C_MasterReadBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_REPEAT_START);
+    if (ret != I2C_MSTR_NO_ERROR)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: %s | err: Failed to read Magnetometer ready\r\n", __FUNCTION__);
+        return RET_FAIL;
+    }
+    
+    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
+    ret = (buffer[0] & 1) == 1;
+    buffer[0] = 0;
+    
+    return ret;
+}
+
+
+uint8_t IMU_readMag(IMU_Mag_t *magData)
+{
+    if(!magData) return RET_FAIL;
+    
+    uint8_t ret = RET_FAIL;
+
+    // Read 14 bytes: accel (6) + temp (2) + gyro (6)
+    
     return RET_PASS;
 }
 
