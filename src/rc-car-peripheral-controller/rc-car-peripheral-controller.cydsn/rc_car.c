@@ -29,6 +29,7 @@ static regMapType regMap[ REG_WR_END ];
 static uint32_t   speed_count;
 
 static uint8_t imuPresent = FALSE;
+static uint32_t lastTime;
 
 static volatile uint32_t rightDistance = 0.0;
 static volatile uint32_t leftDistance  = 0.0;
@@ -125,6 +126,8 @@ uint8_t RCInit(void)
     imu_interrupt_StartEx(imu_handler);
     
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | RC Car initialized\r\n");
+    
+    lastTime = xGetTimestamp();
     return RET_PASS;
 }
 
@@ -189,30 +192,89 @@ static void readTelemetry(void)
 
 static void readIMU(void)
 {
-    if(!imuDataReady || !imuPresent)
-    {
-        return; // IMU not ready
-    }
+    static uint8_t firstReadDone = FALSE;
+    uint8_t ret;
+    uint8_t imuIntStatus = 0;
     
+    if (!imuDataReady || !imuPresent) {
+        if(imuPresent)
+        {
+            if((xGetElapsed(lastTime) > 500 ) && firstReadDone)
+            {
+                vLoggingPrintf(DEBUG_WARN, LOG_RC_CAR, "app: %s | warn: IMU interrupt timeout. Clearing...\r\n", __FUNCTION__);
+                
+                ret = IMU_clearInt(&imuIntStatus);
+                if (ret != RET_PASS) {
+                    vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: IMU_clearInt failed\r\n", __FUNCTION__);
+                    // bail: don’t read data when status unknown
+                    imuDataReady = FALSE;
+                    return;
+                }
+                
+                lastTime = xGetTimestamp();
+            }
+        }
+        return;
+    }
+
+    ret = IMU_clearInt(&imuIntStatus);
+    if (ret != RET_PASS) {
+        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: IMU_clearInt failed\r\n", __FUNCTION__);
+        // bail: don’t read data when status unknown
+        imuDataReady = FALSE;
+        return;
+    }
+
+    if ((imuIntStatus & INT_STATUS_DATA_RDY) == 0) {
+        // Unexpected interrupt cause — log and skip data read
+        vLoggingPrintf(DEBUG_WARN, LOG_RC_CAR, "app: %s | warn: INT_STATUS=0x%02X (no DATA_RDY)\r\n",
+                       __FUNCTION__, imuIntStatus);
+        imuDataReady = FALSE;
+        return;
+    }
+
     IMU_Data_t imuData;
-    IMU_readAll(&imuData);
-    
-    regMap[REG_ACCEL_X     ].data.f32 = imuData.accel_x / 2048.0f;       // g
-    regMap[REG_ACCEL_Y     ].data.f32 = imuData.accel_y / 2048.0f;       // g
-    regMap[REG_ACCEL_Z     ].data.f32 = imuData.accel_z / 2048.0f;       // g
-    regMap[REG_GYRO_X      ].data.f32 = imuData.gyro_x / 16.4f;          // °/s
-    regMap[REG_GYRO_Y      ].data.f32 = imuData.gyro_y / 16.4f;          // °/s
-    regMap[REG_GYRO_Z      ].data.f32 = imuData.gyro_z / 16.4f;          // °/s
-
-    regMap[REG_TEMPERATURE ].data.f32 = (imuData.temperature / 333.87f) + 21.0f; // °C
-
-    // Clear the interrupt
-    uint8_t ret = IMU_clearInt();
-    if(ret != RET_PASS)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: Failed to clear IMU interrupt\r\n", __FUNCTION__);
+    IMU_Mag_t magData;
+    ret = IMU_readAll(&imuData);
+    if (ret != RET_PASS) {
+        vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: Failed to read data from IMU\r\n", __FUNCTION__);
+        imuDataReady = FALSE;
+        return;
     }
+
+    regMap[REG_ACCEL_X].data.f32 = imuData.accel_x / 2048.0f;   // g
+    regMap[REG_ACCEL_Y].data.f32 = imuData.accel_y / 2048.0f;   // g
+    regMap[REG_ACCEL_Z].data.f32 = imuData.accel_z / 2048.0f;   // g
+    regMap[REG_GYRO_X ].data.f32 = imuData.gyro_x  / 16.4f;     // deg/s
+    regMap[REG_GYRO_Y ].data.f32 = imuData.gyro_y  / 16.4f;     // deg/s
+    regMap[REG_GYRO_Z ].data.f32 = imuData.gyro_z  / 16.4f;     // deg/s
+    regMap[REG_TEMPERATURE].data.f32 = (imuData.temperature / 333.87f) + 21.0f; // °C
+    
+    // See if the magnetometer is ready
+    if(IMU_magReady())
+    {
+        ret = IMU_readMag(&magData);
+        if (ret != RET_PASS) {
+            vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: Failed to read data from IMU Magnetometer\r\n", __FUNCTION__);
+            imuDataReady = FALSE;
+            return;
+        }
+        
+        // Place magnetometer data in the register
+        regMap[MAG_X].data.f32 = magData.mag_x_uT;   // g
+        regMap[MAG_Y].data.f32 = magData.mag_y_uT;   // g
+        regMap[MAG_Z].data.f32 = magData.mag_z_uT;   // g
+    }
+    
+    firstReadDone = TRUE;
+    lastTime = xGetTimestamp();
     imuDataReady = FALSE;
+
+    // Optional: detect FIFO overflow or weird bits
+    if (imuIntStatus & INT_STATUS_FIFO_OVERFLOW) {
+        vLoggingPrintf(DEBUG_WARN, LOG_RC_CAR, "app: %s | warn: FIFO overflow\r\n", __FUNCTION__);
+        // If you don’t use FIFO: explicitly disable & reset it once at init or call IMU_clearFIFO()
+    }
 }
 
 

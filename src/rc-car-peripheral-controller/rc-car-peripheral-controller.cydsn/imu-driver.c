@@ -185,6 +185,7 @@
 
 
 static uint8_t buffer[32] = {0};
+static float g_magScale_uT_LSB[3] = {0};
 
 
 uint8_t IMU_detect(void)
@@ -356,7 +357,8 @@ uint8_t IMU_initialize(void)
     // 8. Configure INT pin (do NOT set BYPASS_EN)
     //===========================================
     buffer[0] = REG_INT_PIN_CFG;
-    buffer[1] = (1 << 7) | (0 << 6) | (1 << 5) | (1 << 4) | (1 << 1);  // Latch, clear on read, active low, push-pull
+    // active-low, push-pull, latch, clear-on-read, BYPASS_EN=1
+    buffer[1] = (1 << 7) | (0 << 6) | (1 << 5) | (1 << 4) | (1 << 1);
     ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
     if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write INT_PIN_CFG\r\n");
@@ -404,6 +406,35 @@ uint8_t IMU_initialize(void)
     while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
     vLoggingPrintf(DEBUG_INFO, LOG_IMU, "app: IMU_detect | AK8963 ID: 0x%02X\r\n", buffer[0]);
     
+    // --- enter power-down ---
+    buffer[0] = MAG_REG_CNTL1; buffer[1] = 0x00;
+    I2C_MasterWriteBuf(AK8963_I2C_ADDR, buffer, 2, I2C_MODE_COMPLETE_XFER);
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+
+    // --- enter fuse ROM ---
+    buffer[0] = MAG_REG_CNTL1; buffer[1] = 0x0F;
+    I2C_MasterWriteBuf(AK8963_I2C_ADDR, buffer, 2, I2C_MODE_COMPLETE_XFER);
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+
+    // --- read ASA ---
+    uint8_t asa[3];
+    buffer[0] = MAG_REG_ASAX;
+    I2C_MasterWriteBuf(AK8963_I2C_ADDR, buffer, 1, I2C_MODE_NO_STOP);
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+    I2C_MasterReadBuf(AK8963_I2C_ADDR, asa, 3, I2C_MODE_REPEAT_START);
+    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
+    
+    // --- compute scale (16-bit mode base = 0.15 µT/LSB) ---
+    for (int i = 0; i < 3; ++i) {
+        float adj = ((float)asa[i] - 128.0f) / 256.0f + 1.0f;
+        g_magScale_uT_LSB[i] = adj * 0.15f;
+    }
+    
+    // --- back to power-down ---
+    buffer[0] = MAG_REG_CNTL1; buffer[1] = 0x00;
+    I2C_MasterWriteBuf(AK8963_I2C_ADDR, buffer, 2, I2C_MODE_COMPLETE_XFER);
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+
     //===========================================
     // 10. Configure magnetometer for continuous measurement
     //===========================================
@@ -419,32 +450,30 @@ uint8_t IMU_initialize(void)
 }
 
 
-uint8_t IMU_clearInt(void)
+uint8_t IMU_clearInt(uint8_t* imuIntStatus)
 {
-    uint8 ret = RET_FAIL;
-    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
-    
+    uint8_t ret;
+
+    // Point to INT_STATUS
     buffer[0] = REG_INT_STATUS;
-    ret = I2C_MasterWriteBuf(IMU_ADDRESS, (uint8 *) &buffer[0], sizeof(buffer[0]), I2C_MODE_NO_STOP);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: IMU_detect | err: Failed to read I2C\r\n");
-        
+    ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_NO_STOP);
+    if (ret != I2C_MSTR_NO_ERROR) {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_clearInt | write INT_STATUS addr failed\r\n");
         I2C_MasterClearReadBuf();
         I2C_MasterClearWriteBuf();
         return RET_FAIL;
     }
-    
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
-    
-    buffer[0] = 0;
+
+    // Read 1 byte (this read ALSO clears the latched INT)
     ret = I2C_MasterReadBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_REPEAT_START);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: %s | err: Failed to read I2C\r\n", __FUNCTION__);
+    if (ret != I2C_MSTR_NO_ERROR) {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_clearInt | read INT_STATUS failed\r\n");
         return RET_FAIL;
     }
-    buffer[0] = 0;
+    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
+
+    if (imuIntStatus) *imuIntStatus = buffer[0];
     return RET_PASS;
 }
 
@@ -473,66 +502,72 @@ uint8_t IMU_readAll(IMU_Data_t* imuData)
     imuData->gyro_y      = (int16_t)((buffer[10] << 8) | buffer[11]);
     imuData->gyro_z      = (int16_t)((buffer[12] << 8) | buffer[13]);
 
-    // Now read magnetometer data (from external sensor register block)
-//    buffer[0] = REG_EXT_SENS_DATA_00;  // First external sensor register (mag_x low byte)
-//    ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_NO_STOP);
-//    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
-//    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
-//
-//    ret = I2C_MasterReadBuf(IMU_ADDRESS, buffer, 6, I2C_MODE_REPEAT_START);
-//    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
-//    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
-//
-//    imuData->mag_x = (int16_t)((buffer[1] << 8) | buffer[0]);  // Note: Little-endian!
-//    imuData->mag_y = (int16_t)((buffer[3] << 8) | buffer[2]);
-//    imuData->mag_z = (int16_t)((buffer[5] << 8) | buffer[4]);
-
     return RET_PASS;
 }
 
 
 uint8_t IMU_magReady(void)
 {
-    uint8 ret = RET_FAIL;
-    
-    buffer[0] = MAG_REG_ST1;
-    ret = I2C_MasterWriteBuf(IMU_ADDRESS, (uint8 *) &buffer[0], sizeof(buffer[0]), I2C_MODE_NO_STOP);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: %s | err: Failed to read Magnetometer ready\r\n", __FUNCTION__);
-        
+    uint8_t ret;
+
+    buffer[0] = MAG_REG_ST1;  // 0x02
+    ret = I2C_MasterWriteBuf(AK8963_I2C_ADDR, buffer, 1, I2C_MODE_NO_STOP);
+    if (ret != I2C_MSTR_NO_ERROR) {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_magReady | write ST1 addr failed\r\n");
         I2C_MasterClearReadBuf();
         I2C_MasterClearWriteBuf();
         return RET_FAIL;
     }
-    
     while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
-    
-    buffer[0] = 0;
-    buffer[1] = 0;
-    ret = I2C_MasterReadBuf(IMU_ADDRESS, buffer, 1, I2C_MODE_REPEAT_START);
-    if (ret != I2C_MSTR_NO_ERROR)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: %s | err: Failed to read Magnetometer ready\r\n", __FUNCTION__);
+
+    ret = I2C_MasterReadBuf(AK8963_I2C_ADDR, buffer, 1, I2C_MODE_REPEAT_START);
+    if (ret != I2C_MSTR_NO_ERROR) {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_magReady | read ST1 failed\r\n");
         return RET_FAIL;
     }
-    
     while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
-    ret = (buffer[0] & 1) == 1;
-    buffer[0] = 0;
-    
-    return ret;
+
+    return (buffer[0] & 0x01) ? RET_PASS : RET_FAIL; // DRDY bit
 }
 
 
 uint8_t IMU_readMag(IMU_Mag_t *magData)
 {
-    if(!magData) return RET_FAIL;
-    
-    uint8_t ret = RET_FAIL;
+    if (!magData) return RET_FAIL;
+    uint8_t ret;
 
-    // Read 14 bytes: accel (6) + temp (2) + gyro (6)
+    buffer[0] = MAG_REG_ST1;
+    ret = I2C_MasterWriteBuf(AK8963_I2C_ADDR, buffer, 1, I2C_MODE_NO_STOP);
+    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+
+    ret = I2C_MasterReadBuf(AK8963_I2C_ADDR, buffer, 1, I2C_MODE_REPEAT_START);
+    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
+    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
+    if ((buffer[0] & 0x01) == 0) return RET_FAIL; // not ready
+
+    buffer[0] = MAG_REG_HXL;  // 0x03
+    ret = I2C_MasterWriteBuf(AK8963_I2C_ADDR, buffer, 1, I2C_MODE_NO_STOP);
+    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
+    while ((I2C_MasterStatus() & I2C_MSTAT_WR_CMPLT) == FALSE);
+
+    ret = I2C_MasterReadBuf(AK8963_I2C_ADDR, buffer, 7, I2C_MODE_REPEAT_START);
+    if (ret != I2C_MSTR_NO_ERROR) return RET_FAIL;
+    while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
+
+    int16_t mx = (int16_t)((buffer[1] << 8) | buffer[0]); // little-endian
+    int16_t my = (int16_t)((buffer[3] << 8) | buffer[2]);
+    int16_t mz = (int16_t)((buffer[5] << 8) | buffer[4]);
+    uint8_t st2 = buffer[6];
+
+    if (st2 & (1 << 3)) { // HOFL overflow
+        vLoggingPrintf(DEBUG_WARN, LOG_IMU, "IMU_readMag | overflow, discarding sample\r\n");
+        return RET_FAIL;
+    }
     
+    magData->mag_x_uT = (float)mx * g_magScale_uT_LSB[0];
+    magData->mag_y_uT = (float)my * g_magScale_uT_LSB[1];
+    magData->mag_z_uT = (float)mz * g_magScale_uT_LSB[2];
     return RET_PASS;
 }
 

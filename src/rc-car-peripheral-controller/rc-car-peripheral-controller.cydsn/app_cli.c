@@ -70,6 +70,7 @@ static void cmdWriteReg( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context );
+static void cmdReset( EmbeddedCli *cli, char *args, void *context );
 
 
 /* For storing result from function calls */
@@ -142,6 +143,13 @@ static const CliCommandBinding cmd_bindings[] = {
             "\t\tset_motor_speed_sp <speed>\r\n",
         
         TRUE, NULL, TRUE, FALSE, cmdSetMotorSpeed
+    },
+    (CliCommandBinding){
+        "reset",
+        
+        "Resets the unit",
+        
+        TRUE, NULL, TRUE, FALSE, cmdReset
     },
 };
 
@@ -400,7 +408,7 @@ static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context )
     regMapType* regMap = getRegRef();
     if (regMap == NULL)
     {
-        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: cmdSetMotorState | err: Could not read register map\r\n");
+        vLoggingPrintf(DEBUG_ERROR, LOG_CLI, "app: cmdSetMotorState | err: Could not read register map\r\n");
         return;
     }
     
@@ -432,7 +440,7 @@ static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context )
     regMapType* regMap = getRegRef();
     if (regMap == NULL)
     {
-        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: cmdSetMotorSpeed | err: Could not read register map\r\n");
+        vLoggingPrintf(DEBUG_ERROR, LOG_CLI, "app: cmdSetMotorSpeed | err: Could not read register map\r\n");
         return;
     }
     
@@ -464,11 +472,22 @@ static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context )
     regMapType* regMap = getRegRef();
     if (regMap == NULL)
     {
-        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: cmdSetMotorSpeed | err: Could not read register map\r\n");
+        vLoggingPrintf(DEBUG_ERROR, LOG_CLI, "app: cmdSetMotorSpeed | err: Could not read register map\r\n");
         return;
     }
     
     regMap[REG_MOTOR_ONOFF_STATE].data.u32 = state;
+}
+
+
+static void cmdReset( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    ( void ) args;
+    
+    vLoggingPrintf(DEBUG_INFO, LOG_CLI, "app: cmdReset | Resetting... \r\n");
+    CY_LIB_RESET_CR2_REG |= CY_LIB_RESET_CR2_RESET;
 }
 
 /* [] END OF FILE */
