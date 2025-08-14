@@ -22,6 +22,7 @@
     /*         Define log type enables here          */
     #define LOG_PSOC                       (uint8[2]) {1u, DEBUG_INFO}
     #define LOG_RC_CAR                     (uint8[2]) {1u, DEBUG_INFO}
+    #define LOG_IMU                        (uint8[2]) {1u, DEBUG_INFO}
     #define LOG_SPI                        (uint8[2]) {1u, DEBUG_INFO}
     #define LOG_MOTOR                      (uint8[2]) {1u, DEBUG_INFO}
     #define LOG_CLI                        (uint8[2]) {1u, DEBUG_INFO}

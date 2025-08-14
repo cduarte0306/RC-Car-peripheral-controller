@@ -191,7 +191,7 @@ void vRCTask( void* pvParameters )
     for(;;)
     {
         RcProcess();
-        vTaskDelay( 100 );
+        vTaskDelay( 1 );
     }
 }
 
