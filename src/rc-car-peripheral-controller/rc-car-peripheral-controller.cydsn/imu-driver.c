@@ -183,6 +183,8 @@
 
 #define REG_EXT_SENS_DATA_00  0x49  // External sensor data starts here (magnetometer data shows up here)
 
+#define EXPECTED_MAG_ID       0x48  // Expected magnetometer ID
+
 
 static uint8_t buffer[32] = {0};
 static float g_magScale_uT_LSB[3] = {0};
@@ -406,6 +408,11 @@ uint8_t IMU_initialize(void)
     while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
     vLoggingPrintf(DEBUG_INFO, LOG_IMU, "app: IMU_detect | AK8963 ID: 0x%02X\r\n", buffer[0]);
     
+    if(buffer[0] != EXPECTED_MAG_ID)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "app: %s | Failed to read magnetometer ID\r\n", __FUNCTION__);
+    }
+    
     // --- enter power-down ---
     buffer[0] = MAG_REG_CNTL1; buffer[1] = 0x00;
     I2C_MasterWriteBuf(AK8963_I2C_ADDR, buffer, 2, I2C_MODE_COMPLETE_XFER);
@@ -440,7 +447,7 @@ uint8_t IMU_initialize(void)
     //===========================================
     buffer[0] = MAG_REG_CNTL1;
     buffer[1] = 0x16;
-    ret = I2C_MasterWriteBuf(IMU_ADDRESS, buffer, 2, I2C_MODE_COMPLETE_XFER);
+    ret = I2C_MasterWriteBuf(AK8963_I2C_ADDR, buffer, 2, I2C_MODE_COMPLETE_XFER);
     if (ret != I2C_MSTR_NO_ERROR) {
         vLoggingPrintf(DEBUG_ERROR, LOG_IMU, "IMU_init | Failed to write MAG_REG_CNTL1\r\n");
         return RET_FAIL;
@@ -526,7 +533,7 @@ uint8_t IMU_magReady(void)
         return RET_FAIL;
     }
     while ((I2C_MasterStatus() & I2C_MSTAT_RD_CMPLT) == FALSE);
-
+    
     return (buffer[0] & 0x01) ? RET_PASS : RET_FAIL; // DRDY bit
 }
 

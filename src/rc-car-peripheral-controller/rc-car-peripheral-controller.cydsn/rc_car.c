@@ -69,6 +69,7 @@ CY_ISR(imu_handler)
 {
     if(imuDataReady != TRUE)
         imuDataReady = TRUE;
+    
     imu_interrupt_ClearPending();
 }
 
@@ -216,7 +217,7 @@ static void readIMU(void)
         }
         return;
     }
-
+    
     ret = IMU_clearInt(&imuIntStatus);
     if (ret != RET_PASS) {
         vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: IMU_clearInt failed\r\n", __FUNCTION__);
@@ -253,6 +254,7 @@ static void readIMU(void)
     // See if the magnetometer is ready
     if(IMU_magReady())
     {
+        
         ret = IMU_readMag(&magData);
         if (ret != RET_PASS) {
             vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: Failed to read data from IMU Magnetometer\r\n", __FUNCTION__);

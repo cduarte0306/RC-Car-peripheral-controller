@@ -71,10 +71,16 @@ static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context );
 static void cmdReset( EmbeddedCli *cli, char *args, void *context );
+static void cmdDisplayTelemetry( EmbeddedCli *cli, char *args, void *context );
+
+static void displayTask(void* pvParameters);
 
 
 /* For storing result from function calls */
 static uint8 ret;
+
+xTaskHandle tlmDisplayTask   = NULL;
+
 
 /* CLI bindings */
 static const CliCommandBinding cmd_bindings[] = {
@@ -151,6 +157,14 @@ static const CliCommandBinding cmd_bindings[] = {
         
         TRUE, NULL, TRUE, FALSE, cmdReset
     },
+    
+    (CliCommandBinding){
+        "show-tlm",
+        
+        "Displays telemetry",
+        
+        TRUE, NULL, TRUE, FALSE, cmdDisplayTelemetry
+    },
 };
 
 
@@ -165,7 +179,7 @@ static const CliCommandBinding cmd_bindings[] = {
 uint8 APP_CLI_init( void )
 {
     const uint8 num_cmds = sizeof( cmd_bindings )/sizeof( cmd_bindings[0] );
-    uint8 ret;
+    BaseType_t ret;
     uint16 req_size;
 
     vLoggingPrintf(DEBUG_TRACE, LOG_CLI, "cli: init | enter\r\n");
@@ -229,10 +243,98 @@ uint8 APP_CLI_init( void )
     CLI->writeChar = write_char;
 
     is_init = TRUE;
+    
+    // Initialize the display task
+    ret = xTaskCreate(
+        displayTask,
+        "disp-task", 
+        configMINIMAL_STACK_SIZE, 
+        NULL, 
+        1, 
+        &tlmDisplayTask
+    );
+    if (ret != RET_PASS)
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_CLI, "%s | err: disp-task-init\r\n", __FUNCTION__);
+        CYASSERT(FALSE);
+        for (;;);
+    }
 
     vLoggingPrintf(DEBUG_TRACE, LOG_CLI, "cli: init | exit\r\n");
     return RET_PASS;
 }
+
+
+static void displayTask(void* pvParameters)
+{
+    (void)pvParameters;
+    vTaskSuspend(NULL);
+
+    while (1)
+    {
+        regMapType* regMap = getRegRef();
+        if (!regMap)
+        {
+            SHARED_UART_PutString("\033[H\033[2J"); // clear
+            vPrintf("Error: Unable to retrieve register map.\n");
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
+
+        // Home + clear-to-end (less flicker than full clear each time)
+        SHARED_UART_PutString("\033[H\033[J");
+
+        // IDs / counters (ints)
+        vPrintf("REG_NOOP            %-10d  REG_VER_MAJOR       %-10d\r\n",
+                regMap[REG_NOOP].data.i32, regMap[REG_VER_MAJOR].data.i32);
+        vPrintf("REG_VER_MINOR       %-10d  REG_VER_BUILD       %-10d\r\n",
+                regMap[REG_VER_MINOR].data.i32, regMap[REG_VER_BUILD].data.i32);
+
+        // App-specific ints
+        vPrintf("REG_SPEED           %-10d  REG_FRONT_DISTANCE %-10d\r\n",
+                regMap[REG_SPEED].data.i32, regMap[REG_FRONT_DISTANCE].data.i32);
+        vPrintf("REG_LEFT_DISTANCE   %-10d  REG_RIGHT_DISTANCE %-10d\r\n",
+                regMap[REG_LEFT_DISTANCE].data.i32, regMap[REG_RIGHT_DISTANCE].data.i32);
+
+        // Accel (g)
+        vPrintf("REG_ACCEL_X         % -10.3f  REG_ACCEL_Y         % -10.3f  (g)\r\n",
+                regMap[REG_ACCEL_X].data.f32, regMap[REG_ACCEL_Y].data.f32);
+        vPrintf("REG_ACCEL_Z         % -10.3f\r\n",
+                regMap[REG_ACCEL_Z].data.f32);
+
+        // Gyro (deg/s)
+        vPrintf("REG_GYRO_X          % -10.2f  REG_GYRO_Y          % -10.2f  (deg/s)\r\n",
+                regMap[REG_GYRO_X].data.f32, regMap[REG_GYRO_Y].data.f32);
+        vPrintf("REG_GYRO_Z          % -10.2f\r\n",
+                regMap[REG_GYRO_Z].data.f32);
+
+        // Magnetometer (µT)
+        vPrintf("MAG_X               % -10.2f  MAG_Y               % -10.2f  (uT)\r\n",
+                regMap[MAG_X].data.f32, regMap[MAG_Y].data.f32);
+        vPrintf("MAG_Z               % -10.2f\r\n",
+                regMap[MAG_Z].data.f32);
+
+        // Temperature (°C)
+        vPrintf("REG_TEMPERATURE     % -10.2f  (C)\r\n",
+                regMap[REG_TEMPERATURE].data.f32);
+
+        // States / setpoints / gains
+        vPrintf("REG_MOTOR_ONOFF_STATE %-10d  REG_SET_MOTOR_CTRL_STATUS %-10d\r\n",
+                regMap[REG_MOTOR_ONOFF_STATE].data.i32, regMap[REG_SET_MOTOR_CTRL_STATUS].data.i32);
+        vPrintf("REG_SPEED_SETPOINT  %-10d\r\n",
+                regMap[REG_SPEED_SETPOINT].data.i32);
+
+        // If your PID terms are floats, print them as such:
+        vPrintf("REG_PID_P           % -10.3f  REG_PID_I           % -10.3f\r\n",
+                regMap[REG_PID_P].data.f32, regMap[REG_PID_I].data.f32);
+        vPrintf("REG_PID_D           % -10.3f\r\n",
+                regMap[REG_PID_D].data.f32);
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+
 
 
 /**
@@ -265,7 +367,13 @@ void APP_CLI_update( void )
     #if ( USE_INTERRUPT == 0 )
     while ( (UART_Debug_RXSTATUS_REG & UART_Debug_RX_STS_FIFO_NOTEMPTY) > 0 )
     {
-        embeddedCliReceiveChar( CLI, UART_Debug_RXDATA_REG );
+        const uint8_t data = UART_Debug_RXDATA_REG ;
+        
+        if (data == 0x03)
+        {
+            vTaskSuspend(tlmDisplayTask);
+        }
+        embeddedCliReceiveChar( CLI, data );
     }
     #endif
 
@@ -490,4 +598,22 @@ static void cmdReset( EmbeddedCli *cli, char *args, void *context )
     CY_LIB_RESET_CR2_REG |= CY_LIB_RESET_CR2_RESET;
 }
 
+
+static void cmdDisplayTelemetry( EmbeddedCli *cli, char *args, void *context )
+{
+    (void)context;
+    (void)cli;
+    (void)args;
+    
+    eTaskState state = eTaskGetState(tlmDisplayTask);
+    if (state == eRunning)
+    {
+        vPrintf("Telemetry display task is already running.\r\n");
+    }
+    else
+    {
+        vPrintf("Starting telemetry display task...\r\n");
+        vTaskResume(tlmDisplayTask);    
+    }
+}
 /* [] END OF FILE */
