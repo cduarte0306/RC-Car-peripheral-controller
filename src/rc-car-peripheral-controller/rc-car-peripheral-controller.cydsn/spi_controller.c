@@ -18,36 +18,21 @@
 #include <project.h>
 
 #define WRITE_TRANSACTION 1U
-#define READ_TRANACTION   2U
-
-
-/* DMA Configuration for DMA_TX */
-#define DMA_TX_BYTES_PER_BURST      (1u)
-#define DMA_TX_REQUEST_PER_BURST    (1u)
-#define DMA_TX_SRC_BASE             (CYDEV_SRAM_BASE)
-#define DMA_TX_DST_BASE             (CYDEV_PERIPH_BASE)
-
-/* DMA Configuration for DMA_RX */
-#define DMA_RX_BYTES_PER_BURST      (1u)
-#define DMA_RX_REQUEST_PER_BURST    (1u)
-#define DMA_RX_SRC_BASE             (CYDEV_PERIPH_BASE)
-#define DMA_RX_DST_BASE             (CYDEV_SRAM_BASE)
-
-#define BUFFER_SIZE                 (8u)
+#define READ_TRANSACTION  0U
 #define STORE_TD_CFG_ONCMPLT        (1u)
 
 
-typedef struct
+typedef struct __attribute__((__packed__))
 {
     uint8_t transactionType;
-    uint8 reg;
+    uint8_t reg;
     val_type_t data;
     uint8_t ack;
 } spiTransactionStruct;
 
 
-volatile static uint8_t rxBuffer[sizeof(spiTransactionStruct)];
-volatile static uint8_t txBuffer[sizeof(spiTransactionStruct)];
+volatile static uint8_t rxBuffer[sizeof(spiTransactionStruct)    ] = { 0 };
+volatile static uint8_t txBuffer[sizeof(spiTransactionStruct) + 1] = { 0 };
 volatile static uint8_t rxStatus;
 volatile static uint8_t txStatus;
 
@@ -55,57 +40,102 @@ volatile static uint8_t bufferIndexRx = 0;
 volatile static uint8_t bufferIndexTx = 0;
 
 volatile regMapType* regMap = NULL;
-
-static uint8 txChannel;
-static uint8 txTD;
+uint8_t retRegStatus;
 
 
-static uint8_t configDMA( void );
-
-
-CY_ISR(spi_rx_handler)
+CY_ISR(rxHandler)
 {
-    rxStatus = SPIS_GET_STATUS_RX(SPIS_swStatusRx);
-    if ( rxStatus & SPIS_STS_RX_FIFO_NOT_EMPTY )
+    uint8 tmpStatus;
+    tmpStatus = SPIS_GET_STATUS_RX(SPIS_swStatusRx);
+    SPIS_swStatusRx = tmpStatus;
+    
+    while((SPIS_swStatusRx & SPIS_STS_RX_FIFO_NOT_EMPTY) != 0u)
     {
-        rxBuffer[ bufferIndexRx ++ ] = CY_GET_REG8(SPIS_RXDATA_PTR);
-        if ( bufferIndexRx >= sizeof(spiTransactionStruct) )
-        {
-            bufferIndexRx = 0;    
-        }    
+        uint8 rxData = CY_GET_REG8(SPIS_RXDATA_PTR);
 
-        spiTransactionStruct* rx = (spiTransactionStruct*)rxBuffer;
-        if( rx->transactionType == WRITE_TRANSACTION )
-        {
-            if (regMap->regType == READ_WRITE)
-            {
-                regMap->data.u32 = rx->data.u32;
-            }
+        /* Move data from the FIFO to the Buffer */
+        rxBuffer[bufferIndexRx] = rxData;
 
-            spiTransactionStruct* buff = (spiTransactionStruct*)txBuffer;
-            buff->ack = TRUE;
-        }
-        else if ( rx->transactionType == READ_TRANACTION )
+        /* Set next pointer. */
+        bufferIndexRx++;
+        if(bufferIndexRx >= sizeof(spiTransactionStruct))
         {
-            spiTransactionStruct* buff = (spiTransactionStruct*)txBuffer;
-           
-            // Place the data in the tx buffer
-            buff->data.u32 = txBuffer[rx->data.u32];
+            bufferIndexRx = 0u;
         }
-        
-        SPIS_RX_STATUS_MASK_REG &= ((uint8)~SPIS_STS_RX_FIFO_NOT_EMPTY);
+
+        tmpStatus = SPIS_GET_STATUS_RX(SPIS_swStatusRx);
+        SPIS_swStatusRx = tmpStatus;
     }
 
-    *spi_rx_interrupt_INTC_CLR_PD = spi_rx_interrupt__INTC_MASK;
+    *rx_interrupt_INTC_CLR_PD = rx_interrupt__INTC_MASK;
+}
+
+
+CY_ISR(txHandler)
+{
+    // Read current TX status
+    uint8_t status = SPIS_TX_STATUS_REG;
+
+    // Fill TX FIFO until it's full or we've sent the whole struct
+    while (retRegStatus &&(status & SPIS_STS_TX_FIFO_NOT_FULL) &&
+           (bufferIndexTx < sizeof(spiTransactionStruct)))
+    {
+        CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[bufferIndexTx++]);
+        status = SPIS_TX_STATUS_REG;  // refresh inside loop
+    }
+
+    // Clear pending flag at the end
+    *tx_interrupt_INTC_CLR_PD = tx_interrupt__INTC_MASK;
 }
 
 
 CY_ISR(end_of_message_handler)
 {
-    spiTransactionStruct* buff = (spiTransactionStruct*)txBuffer;
-    buff->ack = FALSE;
+    end_of_message_ClearPending();
+    regMapType val;
+    
+    spiTransactionStruct *rx = (spiTransactionStruct*)rxBuffer;
+    spiTransactionStruct *tx = (spiTransactionStruct*)txBuffer;
 
-    *end_of_message_INTC_CLR_PD = end_of_message__INTC_MASK;
+    if (rx->transactionType == WRITE_TRANSACTION) {
+        if (regMap && regMap->regType == READ_WRITE)
+            regMap->data.u32 = rx->data.u32;
+        tx->transactionType = WRITE_TRANSACTION;
+        tx->reg  = rx->reg;
+        retRegStatus = rdReg(rx->reg, &val);
+        if (retRegStatus)
+        {
+            tx->data.u32 = val.data.u32;    
+            tx->ack = TRUE;
+        }
+        else
+        {
+            tx->data.u32 = READ_TRANSACTION;
+            tx->reg= 0;
+            tx->data.u32 = 0;
+            tx->ack = FALSE;
+        }
+    }
+    else
+    {
+        tx->data.u32 = READ_TRANSACTION;
+        tx->reg= 0;
+        tx->data.u32 = 0;
+        tx->ack = FALSE;
+    }
+
+    bufferIndexRx = 0;
+    bufferIndexTx = 0;
+
+    // Clear the previous buffer and place the first 4 bytes (size of HW FIFO) in
+    SPIS_ClearFIFO();
+
+    // Place data in the FIFO
+    CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[1]);
+    CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[2]);
+    CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[3]);
+    CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[4]);
+    bufferIndexTx = 5;
 }
 
 
@@ -115,35 +145,34 @@ CY_ISR(end_of_message_handler)
  * @return uint8_t RET_PASS on success, RET_FAIL on failure
  */
 uint8_t SPI_controller_start(void)
-{
+{    
     vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | Initializing SPI controller\r\n");
     
-    spi_rx_interrupt_Start();
-    spi_rx_interrupt_StartEx( spi_rx_handler );
-        
+    rx_interrupt_Start();
+    rx_interrupt_StartEx(rxHandler);
+
+    tx_interrupt_Start();
+    tx_interrupt_StartEx(txHandler);
+
     end_of_message_Start();
     end_of_message_StartEx(end_of_message_handler); 
     
     SPIS_Start();
-    
+    SPIS_Start();
     SPIS_ClearFIFO();
     SPIS_ClearRxBuffer();
     SPIS_ClearTxBuffer();
     
-    regMap = getRegRef();
+    bufferIndexTx = 0;
+    while ((SPIS_ReadTxStatus() & SPIS_STS_TX_FIFO_NOT_FULL) &&
+           (bufferIndexTx < sizeof(spiTransactionStruct)))
+    {
+        CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[bufferIndexTx++]);
+    }
+
     if (regMap == NULL)
     {
         vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: SPI_controller_start | err: Could not read register map\r\n");
-        return RET_FAIL;
-    }
-    
-    // Configure DMA for transmission
-    memset((uint8*)&txBuffer, 0, sizeof(txBuffer));
-    
-    uint8 ret = configDMA();
-    if (ret != RET_PASS)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: SPI_controller_start | err: Failed to configure DMA\r\n");
         return RET_FAIL;
     }
     
@@ -151,53 +180,5 @@ uint8_t SPI_controller_start(void)
     return RET_PASS;
 }
 
-
-/**
- * @brief Configures the DMA for SPI transmission
- * 
- * @return uint8_t RET_PASS on success, RET_FAIL on failure
- */
-static uint8_t configDMA(void)
-{
-    cystatus ret;
-    
-    txChannel = DMA_SPI_TX_DmaInitialize(DMA_TX_BYTES_PER_BURST, DMA_TX_REQUEST_PER_BURST, 
-                                        HI16(DMA_TX_SRC_BASE), HI16(DMA_TX_DST_BASE));
-
-    txTD = CyDmaTdAllocate();
-
-    ret = CyDmaTdSetConfiguration(txTD, (BUFFER_SIZE-1), CY_DMA_DISABLE_TD, TD_INC_SRC_ADR);
-    if (ret != CYRET_SUCCESS)
-    {   
-        return RET_FAIL;
-    }
-    
-    ret = CyDmaTdSetAddress(txTD, LO16((uint32) txBuffer), LO16((uint32) SPIS_TXDATA_PTR));
-    if (ret != CYRET_SUCCESS)
-    {   
-        return RET_FAIL;
-    }
-    
-    ret = CyDmaChSetInitialTd(txChannel, txTD);
-    if (ret != CYRET_SUCCESS)
-    {   
-        return RET_FAIL;
-    }
-    
-    ret = CyDmaClearPendingDrq(txChannel);
-    if (ret != CYRET_SUCCESS)
-    {
-        return RET_FAIL;
-    }
-    
-    /* Enable the DMA */
-    ret = CyDmaChEnable(txChannel, 1);
-    if (ret != CYRET_SUCCESS)
-    {
-        return RET_FAIL;
-    }
-    
-    return RET_PASS;
-}
 
 /* [] END OF FILE */

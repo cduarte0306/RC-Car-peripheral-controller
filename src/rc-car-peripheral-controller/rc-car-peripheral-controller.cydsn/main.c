@@ -15,6 +15,7 @@
 #include "RCUtils.h"
 #include "rc_car.h"
 #include "app_cli.h"
+#include "spi_controller.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -182,7 +183,15 @@ void vCommsTask( void* pvParameters )
 void vRCTask( void* pvParameters )
 {
     ( void ) pvParameters;
-    BaseType_t ret = RCInit();
+    uint8_t ret;
+    
+    ret = SPI_controller_start();
+    if ( ret != pdPASS )
+    {
+        vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | err: Could initialize SPI controller\r\n");
+    }
+
+    ret = RCInit();
     if ( ret != pdPASS )
     {
         vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | err: Could initialize RC car module\r\n");
