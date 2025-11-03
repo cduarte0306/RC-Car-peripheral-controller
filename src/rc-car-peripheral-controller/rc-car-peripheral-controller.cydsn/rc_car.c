@@ -84,14 +84,6 @@ uint8_t RCInit(void)
     uint8 ret;
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing RC car\r\n");
     
-    ret = SPI_controller_start();
-    if (!ret)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: RCInit | err: Could not configure SPI\r\n");
-    }
-    
-    MotorCtrlInit();
-    
     for (uint8 idx = REG_NOOP; idx < REG_RO_END; idx++)
     {
         regMap[idx].regType = READ_ONLY;
@@ -101,6 +93,8 @@ uint8_t RCInit(void)
     {
         regMap[idx].regType = READ_WRITE;
     }
+    
+    MotorCtrlInit();
     
     PWM_trig_Start();
     
@@ -164,7 +158,41 @@ void RcReadSpeedThread(void)
 
 
 /**
- * @brief Gets the register map reference
+ * @brief Read from the register map
+ * 
+ * @return regMapType* Pointer to the register map
+ */
+uint8_t rdReg(uint8_t reg, regMapType* val)
+{
+    if (!val || (reg >= REG_WR_END))
+    {
+        return RET_FAIL;        
+    }
+    
+    (*val).data.u32 = regMap[reg].data.u32;
+    return RET_PASS;
+}
+
+
+/**
+ * @brief Write to the register map
+ * 
+ * @return regMapType* Pointer to the register map
+ */
+uint8_t wrtReg(uint8_t reg, regMapType* val)
+{
+    if (!val || ((reg < REG_RO_END) && (reg > REG_WR_END)))
+    {
+        return RET_FAIL;        
+    }
+
+    regMap[reg].data.u32 = (*val).data.u32;
+    return RET_PASS;
+}
+
+
+/**
+ * @brief Get reference to the register map
  * 
  * @return regMapType* Pointer to the register map
  */
