@@ -17,10 +17,13 @@
 
 #include <project.h>
 
-#define WRITE_TRANSACTION 1U
-#define READ_TRANSACTION  0U
-#define STORE_TD_CFG_ONCMPLT        (1u)
 
+enum
+{
+    READ_TRANSACTION,          // Basic read transaction
+    STAGE_RD_WRT_TRANSACTION,  // Stages a byte from the register map in the read buffer
+    WRITE_REG_TRANSACTION      // Writes to selected register in register map
+};
 
 typedef struct __attribute__((__packed__))
 {
@@ -93,35 +96,50 @@ CY_ISR(end_of_message_handler)
 {
     end_of_message_ClearPending();
     regMapType val;
+    uint8_t ret;
     
     spiTransactionStruct *rx = (spiTransactionStruct*)rxBuffer;
     spiTransactionStruct *tx = (spiTransactionStruct*)txBuffer;
-
-    if (rx->transactionType == WRITE_TRANSACTION) {
-        if (regMap && regMap->regType == READ_WRITE)
-            regMap->data.u32 = rx->data.u32;
-        tx->transactionType = WRITE_TRANSACTION;
-        tx->reg  = rx->reg;
-        retRegStatus = rdReg(rx->reg, &val);
-        if (retRegStatus)
+    
+    switch(rx->transactionType)
+    {
+        case STAGE_RD_WRT_TRANSACTION:
         {
-            tx->data.u32 = val.data.u32;    
-            tx->ack = TRUE;
+            tx->transactionType = STAGE_RD_WRT_TRANSACTION;
+            tx->reg  = rx->reg;
+            retRegStatus = rdReg(rx->reg, &val);
+            if (retRegStatus)
+            {
+                tx->data.u32 = val.data.u32;    
+                tx->ack = TRUE;
+            }
+            else
+            {
+                tx->data.u32 = READ_TRANSACTION;
+                tx->reg= 0;
+                tx->data.u32 = 0;
+                tx->ack = FALSE;
+            }
+            break;
         }
-        else
-        {
+        case READ_TRANSACTION:
             tx->data.u32 = READ_TRANSACTION;
             tx->reg= 0;
             tx->data.u32 = 0;
             tx->ack = FALSE;
-        }
-    }
-    else
-    {
-        tx->data.u32 = READ_TRANSACTION;
-        tx->reg= 0;
-        tx->data.u32 = 0;
-        tx->ack = FALSE;
+            break;
+        case WRITE_REG_TRANSACTION:
+            val.data.u32 = tx->data.u32;
+            ret = wrtReg(tx->reg, &val);
+            if (!ret)
+            {
+                tx->ack = FALSE;
+            }
+
+            tx->data.u32 = 0;
+            tx->ack = TRUE;
+            break;
+        default: break;
     }
 
     bufferIndexRx = 0;
