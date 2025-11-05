@@ -19,7 +19,7 @@
 #define READ_ONLY   0u
 #define READ_WRITE  1u
     
-    
+
 typedef enum
 {
     REG_NOOP,

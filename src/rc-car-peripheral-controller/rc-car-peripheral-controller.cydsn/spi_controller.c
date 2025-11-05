@@ -18,6 +18,11 @@
 #include <project.h>
 
 
+#define DMA_SPI_RX_SRC_BASE (CYDEV_PERIPH_BASE)
+#define DMA_SPI_TX_SRC_BASE (CYDEV_PERIPH_BASE)
+#define DMA_SPI_RX_DST_BASE (CYDEV_SRAM_BASE)
+
+
 enum
 {
     READ_TRANSACTION,          // Basic read transaction
@@ -33,6 +38,8 @@ typedef struct __attribute__((__packed__))
     uint8_t ack;
 } spiTransactionStruct;
 
+static uint8_t rxChannel;
+static uint8 rxTD;
 
 volatile static uint8_t rxBuffer[sizeof(spiTransactionStruct)    ] = { 0 };
 volatile static uint8_t txBuffer[sizeof(spiTransactionStruct) + 1] = { 0 };
@@ -45,33 +52,7 @@ volatile static uint8_t bufferIndexTx = 0;
 volatile regMapType* regMap = NULL;
 uint8_t retRegStatus;
 
-
-CY_ISR(rxHandler)
-{
-    uint8 tmpStatus;
-    tmpStatus = SPIS_GET_STATUS_RX(SPIS_swStatusRx);
-    SPIS_swStatusRx = tmpStatus;
-    
-    while((SPIS_swStatusRx & SPIS_STS_RX_FIFO_NOT_EMPTY) != 0u)
-    {
-        uint8 rxData = CY_GET_REG8(SPIS_RXDATA_PTR);
-
-        /* Move data from the FIFO to the Buffer */
-        rxBuffer[bufferIndexRx] = rxData;
-
-        /* Set next pointer. */
-        bufferIndexRx++;
-        if(bufferIndexRx >= sizeof(spiTransactionStruct))
-        {
-            bufferIndexRx = 0u;
-        }
-
-        tmpStatus = SPIS_GET_STATUS_RX(SPIS_swStatusRx);
-        SPIS_swStatusRx = tmpStatus;
-    }
-
-    *rx_interrupt_INTC_CLR_PD = rx_interrupt__INTC_MASK;
-}
+static uint8_t configRxDMA(void);
 
 
 CY_ISR(txHandler)
@@ -154,6 +135,9 @@ CY_ISR(end_of_message_handler)
     CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[3]);
     CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[4]);
     bufferIndexTx = 5;
+    
+    CyDmaChSetInitialTd(rxChannel, rxTD);
+    CyDmaChEnable(rxChannel, 1);
 }
 
 
@@ -166,12 +150,11 @@ uint8_t SPI_controller_start(void)
 {    
     vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | Initializing SPI controller\r\n");
     
-    rx_interrupt_Start();
-    rx_interrupt_StartEx(rxHandler);
+    uint8_t ret;
 
     tx_interrupt_Start();
     tx_interrupt_StartEx(txHandler);
-
+    
     end_of_message_Start();
     end_of_message_StartEx(end_of_message_handler); 
     
@@ -187,16 +170,91 @@ uint8_t SPI_controller_start(void)
     {
         CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[bufferIndexTx++]);
     }
-
-    if (regMap == NULL)
+    
+    ret = configRxDMA();
+    if (!ret)
     {
-        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: SPI_controller_start | err: Could not read register map\r\n");
-        return RET_FAIL;
+        vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | err: Could not start DMA\r\n");
     }
     
     vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | SPI controller initialized\r\n");
     return RET_PASS;
 }
+
+
+/**
+ * @brief Configures the DMA channel to receive data from the SPI RX FIFO.
+ *
+ * Moves bytes from SPIS_RXDATA_PTR → rxBuffer[] automatically.
+ * Restarts when the entire spiTransactionStruct has been received.
+ */
+static uint8_t configRxDMA(void)
+{
+    cystatus ret;
+
+    /* Initialize RX DMA channel */
+    rxChannel = DMA_SPI_RX_DmaInitialize(
+        1,     // 1 byte per burst
+        1,   // 1 request per burst
+        HI16(DMA_SPI_RX_SRC_BASE),  // High 16 bits of source base (peripheral)
+        HI16(CYDEV_SRAM_BASE));     // High 16 bits of destination base (SRAM)
+    if (rxChannel == DMA_INVALID_CHANNEL)
+    {
+        return RET_FAIL;
+    }
+
+    /* Allocate a Transfer Descriptor (TD) */
+    rxTD = CyDmaTdAllocate();
+    if (rxTD == CY_DMA_INVALID_TD)
+    {
+        return RET_FAIL;
+    }
+
+    /* Configure the TD */
+    ret = CyDmaTdSetConfiguration(
+        rxTD,
+        sizeof(spiTransactionStruct),             // Bytes per transfer
+        CY_DMA_DISABLE_TD,                        // One-shot mode, stop after completion
+        DMA_SPI_RX__TD_TERMOUT_EN | TD_INC_DST_ADR); // Increment destination, assert TERMOUT
+    if (ret != CYRET_SUCCESS)
+    {
+        return RET_FAIL;
+    }
+
+    /* Set source and destination addresses */
+    ret = CyDmaTdSetAddress(
+        rxTD,
+        LO16((uint32)SPIS_RXDATA_PTR),           // Source: SPI RX register
+        LO16((uint32)rxBuffer));                 // Destination: RX buffer
+    if (ret != CYRET_SUCCESS)
+    {
+        return RET_FAIL;
+    }
+
+    /* Assign the TD to the channel */
+    ret = CyDmaChSetInitialTd(rxChannel, rxTD);
+    if (ret != CYRET_SUCCESS)
+    {
+        return RET_FAIL;
+    }
+
+    /* Clear any pending DMA requests before enabling */
+    ret = CyDmaClearPendingDrq(rxChannel);
+    if (ret != CYRET_SUCCESS)
+    {
+        return RET_FAIL;
+    }
+
+    /* Enable the RX DMA channel */
+    ret = CyDmaChEnable(rxChannel, 1);
+    if (ret != CYRET_SUCCESS)
+    {
+        return RET_FAIL;
+    }
+
+    return RET_PASS;
+}
+
 
 
 /* [] END OF FILE */
