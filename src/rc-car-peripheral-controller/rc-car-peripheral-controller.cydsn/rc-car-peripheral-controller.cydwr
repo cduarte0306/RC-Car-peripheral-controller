@@ -301,6 +301,7 @@
       <Data key="cfc142b6-4d8d-45e3-9d47-2d835dadb679" value="front_trig_2" />
       <Data key="d0f22e5c-7af6-44c5-963c-b3f2c69e5e26" value="right_echo" />
       <Data key="d6221281-68d8-47d5-b1e9-54636cebdf33" value="imu_int_pin" />
+      <Data key="e8f746dc-3a11-4b38-8eef-6f663670a8b7" value="MISO_1" />
       <Data key="e47a3924-8f6e-4b7b-8ce9-722f5c4a9955" value="SS" />
       <Data key="e851a3b9-efb8-48be-bbb8-b303b216c393" value="LED" />
       <Data key="ed092b9b-d398-4703-be89-cebf998501f6" value="Tx_1" />
@@ -3490,6 +3491,11 @@
     <Group key="d6221281-68d8-47d5-b1e9-54636cebdf33">
       <Group key="0">
         <Data key="Port Format" value="1,7" />
+      </Group>
+    </Group>
+    <Group key="e8f746dc-3a11-4b38-8eef-6f663670a8b7">
+      <Group key="0">
+        <Data key="Port Format" value="0,1" />
       </Group>
     </Group>
     <Group key="e47a3924-8f6e-4b7b-8ce9-722f5c4a9955">
