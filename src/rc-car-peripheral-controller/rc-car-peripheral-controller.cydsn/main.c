@@ -158,12 +158,22 @@ void vLEDMonitorTask(void *pvParameters)
 {
     (void) pvParameters;
     uint8 ledState = pdFALSE;
-
+    uint8_t connectionStatus = pdFALSE;
     for(;;)
     {
+        connectionStatus = SPIGetConnectionStatus();  // Read the SPI connection status
         uint8 staticBits = (LED_DR & (uint8)(~LED_MASK));
         LED_DR = staticBits | ((uint8)(ledState << LED_SHIFT) & LED_MASK);
-        ledState = !ledState;
+
+        if ( connectionStatus)
+        {
+            ledState = !ledState;
+        }
+        else
+        {
+            ledState = 0;
+        }
+        
         vTaskDelay(pdMS_TO_TICKS(500)); // Delay 500ms
     }
 }
