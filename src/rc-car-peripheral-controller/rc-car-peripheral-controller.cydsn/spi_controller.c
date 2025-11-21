@@ -15,7 +15,7 @@
 #include "rc_car.h"
 #include "RCUtils.h"
 #include "FreeRTOS.h"
-#include "timers.h"
+//#include "timers.h"
 
 #include <project.h>
 
@@ -53,7 +53,7 @@ volatile static uint8_t bufferIndexTx = 0;
 
 volatile static uint16_t connectionTimer = SPI_CONNECTION_TIMEOUT;
 volatile static uint8_t connectionFlag = pdFALSE;
-TimerHandle_t xTimer;
+//TimerHandle_t xTimer;
 
 
 volatile regMapType* regMap = NULL;
@@ -62,7 +62,7 @@ uint8_t retRegStatus;
 static uint8_t configRxDMA(void);
 
 
-static void vTimerCallback(TimerHandle_t xTimer);
+//static void vTimerCallback(TimerHandle_t xTimer);
 
 
 CY_ISR(txHandler)
@@ -189,18 +189,18 @@ uint8_t SPI_controller_start(void)
     }
     
     // Start timer
-    xTimer = xTimerCreate(
-        "connection timer",  // A descriptive name for the timer
-        pdMS_TO_TICKS(1000), // Timer period: 1000 milliseconds
-        pdTRUE,              // Auto-reload: Yes (timer restarts after expiring)
-        (void *) 1,          // Timer ID: A value to identify this timer
-        &vTimerCallback      // The function to call when the timer expires
-    );
-    if (xTimer == NULL)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: SPI_controller_start | Failed to create software timer\r\n");
-        return RET_FAIL;
-    }
+//    xTimer = xTimerCreate(
+//        "connection timer",  // A descriptive name for the timer
+//        pdMS_TO_TICKS(1000), // Timer period: 1000 milliseconds
+//        pdTRUE,              // Auto-reload: Yes (timer restarts after expiring)
+//        (void *) 1,          // Timer ID: A value to identify this timer
+//        &vTimerCallback      // The function to call when the timer expires
+//    );
+//    if (xTimer == NULL)
+//    {
+//        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: SPI_controller_start | Failed to create software timer\r\n");
+//        return RET_FAIL;
+//    }
     
     vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | SPI controller initialized\r\n");
     return RET_PASS;
@@ -287,20 +287,20 @@ uint8_t SPIGetConnectionStatus(void)
 }
 
 
-static void vTimerCallback(TimerHandle_t xTimer)
-{
-    (void) xTimer;
-    
-    // Increase the timeout
-    if (connectionTimer <= SPI_CONNECTION_TIMEOUT)
-    {
-        connectionTimer ++;
-    }
-    else
-    {
-        connectionFlag = pdFALSE;  // Clear the connection flag
-    }
-}
+//static void vTimerCallback(TimerHandle_t xTimer)
+//{
+//    (void) xTimer;
+//    
+//    // Increase the timeout
+//    if (connectionTimer <= SPI_CONNECTION_TIMEOUT)
+//    {
+//        connectionTimer ++;
+//    }
+//    else
+//    {
+//        connectionFlag = pdFALSE;  // Clear the connection flag
+//    }
+//}
 
 
 
