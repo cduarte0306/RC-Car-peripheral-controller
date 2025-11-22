@@ -14,7 +14,9 @@
 #define SPI_CONTROLLER_H
 
 #include <stdint.h>
-   
+
+#define SPI_CONNECTION_TIMEOUT  10
+    
 
 uint8_t SPI_controller_start(void);
 void SPI_controller_process(void);

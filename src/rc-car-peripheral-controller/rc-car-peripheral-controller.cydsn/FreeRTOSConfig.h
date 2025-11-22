@@ -39,7 +39,6 @@
  *----------------------------------------------------------*/
 
 #include <project.h>
-#include "exceptions.h"
     
     
 #define configASSERT(x)                   CYASSERT(x)

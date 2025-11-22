@@ -16,7 +16,7 @@
 
 uint8_t major_ = 1;
 uint8_t minor_ = 2;
-uint8_t build_ = 3;
+uint8_t build_ = 4;
 
 
 void getVers(unsigned char* major, unsigned char* minor, unsigned char* build) {

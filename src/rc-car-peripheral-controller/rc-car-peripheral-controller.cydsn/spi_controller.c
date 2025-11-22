@@ -14,6 +14,8 @@
 #include "types.h"
 #include "rc_car.h"
 #include "RCUtils.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include <project.h>
 
@@ -49,10 +51,17 @@ volatile static uint8_t txStatus;
 volatile static uint8_t bufferIndexRx = 0;
 volatile static uint8_t bufferIndexTx = 0;
 
+volatile static uint16_t connectionTimer = SPI_CONNECTION_TIMEOUT;
+static xTaskHandle led_handle = NULL;
+
+
 volatile regMapType* regMap = NULL;
 uint8_t retRegStatus;
 
 static uint8_t configRxDMA(void);
+
+
+static void vLEDMonitorTask(void *pvParameters);
 
 
 CY_ISR(txHandler)
@@ -93,6 +102,7 @@ CY_ISR(end_of_message_handler)
             {
                 tx->data.u32 = val.data.u32;    
                 tx->ack = TRUE;
+                connectionTimer = 0;      // Reset the counter
             }
             else
             {
@@ -147,14 +157,13 @@ CY_ISR(end_of_message_handler)
  * @return uint8_t RET_PASS on success, RET_FAIL on failure
  */
 uint8_t SPI_controller_start(void)
-{    
+{
     vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | Initializing SPI controller\r\n");
     
     uint8_t ret;
-
     tx_interrupt_Start();
     tx_interrupt_StartEx(txHandler);
-    
+
     end_of_message_Start();
     end_of_message_StartEx(end_of_message_handler); 
     
@@ -177,6 +186,22 @@ uint8_t SPI_controller_start(void)
         vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | err: Could not start DMA\r\n");
     }
     
+    /* Create a simple task */
+    ret = xTaskCreate(
+        vLEDMonitorTask,               /* Task function */
+        "led-monitor",                   /* Task name (for debugging) */
+        configMINIMAL_STACK_SIZE,  /* Stack size */
+        NULL,                      /* Task input parameter */
+        1,                         /* Priority */
+        &led_handle                /* Task handle */
+    );
+    if (ret != RET_PASS)
+    {
+        vLoggingPrintfCritical("main | err: init led-monitor fail\r\n");
+        CYASSERT(FALSE);
+        for (;;);
+    }
+
     vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | SPI controller initialized\r\n");
     return RET_PASS;
 }
@@ -253,6 +278,32 @@ static uint8_t configRxDMA(void)
     }
 
     return RET_PASS;
+}
+
+
+/* Simple task to blink an LED */
+static void vLEDMonitorTask(void* pvParameters)
+{
+    (void) pvParameters;
+    uint8 ledState = pdFALSE;
+
+    for(;;)
+    {
+        if (connectionTimer == SPI_CONNECTION_TIMEOUT)
+        {
+            ledState = 0;
+        }
+        else
+        {
+            ledState = ~ledState;
+            connectionTimer ++;
+        }
+
+        uint8 staticBits = (LED_DR & (uint8)(~LED_MASK));
+        LED_DR = staticBits | ((uint8)(ledState << LED_SHIFT) & LED_MASK);
+        
+        vTaskDelay(500);
+    }
 }
 
 
