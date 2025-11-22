@@ -22,7 +22,7 @@
 
 
 /* Function prototype for a simple task */
-void vLEDMonitorTask(void *pvParameters);
+
 void vCommsTask( void* pvParameters );
 void vRCTask( void* pvParameters );
 void vSpeedMeasureTask( void* pvParameters );
@@ -31,7 +31,6 @@ void vCliTask( void* pvParameters );
 xTaskHandle rc_car_handle   = NULL;
 xTaskHandle cli_handle      = NULL;
 xTaskHandle spi_coms_handle = NULL;
-xTaskHandle led_handle      = NULL;
 xTaskHandle speed_rd_handle = NULL;
 
 
@@ -55,25 +54,7 @@ int main(void)
     UART_Debug_Start();
     
     vLoggingPrintf(DEBUG_INFO, LOG_PSOC, " ===============================\r\n\r\n");
-    
-    /* Create a simple task */
-    ret = xTaskCreate(
-        vLEDMonitorTask,               /* Task function */
-        "led-monitor",                   /* Task name (for debugging) */
-        configMINIMAL_STACK_SIZE,  /* Stack size */
-        NULL,                      /* Task input parameter */
-        1,                         /* Priority */
-        &led_handle                /* Task handle */
-    );
-    if (ret != RET_PASS)
-    {
-        vLoggingPrintfCritical("main | err: init led-monitor fail\r\n");
-        CYASSERT(FALSE);
-        for (;;);
-    }
-    
-    vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR,"main | init led-monitor\r\n");
-    
+
     ret = xTaskCreate(
         vCommsTask,                /* Task function */
         "spi-comms",               /* Task name (for debugging) */
@@ -149,32 +130,6 @@ int main(void)
     for(;;)
     {
         /* Infinite loop */
-    }
-}
-
-
-/* Simple task to blink an LED */
-void vLEDMonitorTask(void *pvParameters)
-{
-    (void) pvParameters;
-    uint8 ledState = pdFALSE;
-    uint8_t connectionStatus = pdFALSE;
-    for(;;)
-    {
-//        connectionStatus = SPIGetConnectionStatus();  // Read the SPI connection status
-//        uint8 staticBits = (LED_DR & (uint8)(~LED_MASK));
-//        LED_DR = staticBits | ((uint8)(ledState << LED_SHIFT) & LED_MASK);
-//
-//        if ( connectionStatus)
-//        {
-//            ledState = !ledState;
-//        }
-//        else
-//        {
-//            ledState = 0;
-//        }
-        
-        vTaskDelay(pdMS_TO_TICKS(500)); // Delay 500ms
     }
 }
 

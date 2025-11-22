@@ -15,11 +15,10 @@
 
 #include <stdint.h>
 
-#define SPI_CONNECTION_TIMEOUT  5
+#define SPI_CONNECTION_TIMEOUT  10
     
 
 uint8_t SPI_controller_start(void);
-uint8_t SPIGetConnectionStatus(void);
 void SPI_controller_process(void);
     
 #endif

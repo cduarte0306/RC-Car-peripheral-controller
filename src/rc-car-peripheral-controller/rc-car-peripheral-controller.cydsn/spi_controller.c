@@ -15,7 +15,7 @@
 #include "rc_car.h"
 #include "RCUtils.h"
 #include "FreeRTOS.h"
-//#include "timers.h"
+#include "task.h"
 
 #include <project.h>
 
@@ -52,8 +52,7 @@ volatile static uint8_t bufferIndexRx = 0;
 volatile static uint8_t bufferIndexTx = 0;
 
 volatile static uint16_t connectionTimer = SPI_CONNECTION_TIMEOUT;
-volatile static uint8_t connectionFlag = pdFALSE;
-//TimerHandle_t xTimer;
+static xTaskHandle led_handle = NULL;
 
 
 volatile regMapType* regMap = NULL;
@@ -62,7 +61,7 @@ uint8_t retRegStatus;
 static uint8_t configRxDMA(void);
 
 
-//static void vTimerCallback(TimerHandle_t xTimer);
+static void vLEDMonitorTask(void *pvParameters);
 
 
 CY_ISR(txHandler)
@@ -103,7 +102,6 @@ CY_ISR(end_of_message_handler)
             {
                 tx->data.u32 = val.data.u32;    
                 tx->ack = TRUE;
-                connectionFlag = pdTRUE;  // Mark connection as true
                 connectionTimer = 0;      // Reset the counter
             }
             else
@@ -188,20 +186,22 @@ uint8_t SPI_controller_start(void)
         vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | err: Could not start DMA\r\n");
     }
     
-    // Start timer
-//    xTimer = xTimerCreate(
-//        "connection timer",  // A descriptive name for the timer
-//        pdMS_TO_TICKS(1000), // Timer period: 1000 milliseconds
-//        pdTRUE,              // Auto-reload: Yes (timer restarts after expiring)
-//        (void *) 1,          // Timer ID: A value to identify this timer
-//        &vTimerCallback      // The function to call when the timer expires
-//    );
-//    if (xTimer == NULL)
-//    {
-//        vLoggingPrintf(DEBUG_ERROR, LOG_SPI, "app: SPI_controller_start | Failed to create software timer\r\n");
-//        return RET_FAIL;
-//    }
-    
+    /* Create a simple task */
+    ret = xTaskCreate(
+        vLEDMonitorTask,               /* Task function */
+        "led-monitor",                   /* Task name (for debugging) */
+        configMINIMAL_STACK_SIZE,  /* Stack size */
+        NULL,                      /* Task input parameter */
+        1,                         /* Priority */
+        &led_handle                /* Task handle */
+    );
+    if (ret != RET_PASS)
+    {
+        vLoggingPrintfCritical("main | err: init led-monitor fail\r\n");
+        CYASSERT(FALSE);
+        for (;;);
+    }
+
     vLoggingPrintf(DEBUG_INFO, LOG_SPI, "app: SPI_controller_start | SPI controller initialized\r\n");
     return RET_PASS;
 }
@@ -281,26 +281,30 @@ static uint8_t configRxDMA(void)
 }
 
 
-uint8_t SPIGetConnectionStatus(void)
+/* Simple task to blink an LED */
+static void vLEDMonitorTask(void* pvParameters)
 {
-    return connectionFlag;
+    (void) pvParameters;
+    uint8 ledState = pdFALSE;
+
+    for(;;)
+    {
+        if (connectionTimer == SPI_CONNECTION_TIMEOUT)
+        {
+            ledState = 0;
+        }
+        else
+        {
+            ledState = ~ledState;
+            connectionTimer ++;
+        }
+
+        uint8 staticBits = (LED_DR & (uint8)(~LED_MASK));
+        LED_DR = staticBits | ((uint8)(ledState << LED_SHIFT) & LED_MASK);
+        
+        vTaskDelay(500);
+    }
 }
-
-
-//static void vTimerCallback(TimerHandle_t xTimer)
-//{
-//    (void) xTimer;
-//    
-//    // Increase the timeout
-//    if (connectionTimer <= SPI_CONNECTION_TIMEOUT)
-//    {
-//        connectionTimer ++;
-//    }
-//    else
-//    {
-//        connectionFlag = pdFALSE;  // Clear the connection flag
-//    }
-//}
 
 
 

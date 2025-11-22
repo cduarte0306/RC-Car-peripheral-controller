@@ -81,7 +81,6 @@ CY_ISR(imu_handler)
  */
 uint8_t RCInit(void)
 {
-    uint8 ret;
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing RC car\r\n");
     
     for (uint8 idx = REG_NOOP; idx < REG_RO_END; idx++)

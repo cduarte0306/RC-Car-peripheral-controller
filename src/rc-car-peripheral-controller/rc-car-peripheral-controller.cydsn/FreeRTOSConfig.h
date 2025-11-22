@@ -64,7 +64,7 @@
     
 /* Stack related settings */
 #define configSTACK_DEPTH_TYPE                    uint16_t
-#define configMINIMAL_STACK_SIZE	              1024u
+#define configMINIMAL_STACK_SIZE	              512u
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION   1
 
 /* Task related settings */
