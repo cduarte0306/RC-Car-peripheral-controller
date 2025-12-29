@@ -26,7 +26,6 @@
 
 static uint32_t lastSpeed = 0;
 static regMapType regMap[ REG_WR_END ];
-static uint32_t   speed_count;
 
 static uint8_t imuPresent = FALSE;
 static uint32_t lastTime;
@@ -208,8 +207,7 @@ regMapType* getRegRef(void)
 static void readTelemetry(void)
 {
     IMU_Data_t imuData;
-    
-    regMap[REG_SPEED         ].data.u32 = speed_count;
+
     regMap[REG_LEFT_DISTANCE ].data.u32 = leftDistance  / 58;
     regMap[REG_RIGHT_DISTANCE].data.u32 = rightDistance / 58;
     regMap[REG_FRONT_DISTANCE].data.u32 = frontDistance / 58;
