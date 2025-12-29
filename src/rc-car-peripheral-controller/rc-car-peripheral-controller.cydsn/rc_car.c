@@ -39,6 +39,8 @@ static volatile uint8_t imuDataReady = FALSE;
 
 static volatile uint8_t sensorSel = 0;
 
+static volatile uint16_t timerVal = 0;
+
 static void readTelemetry(void);
 static void initIMU(void);
 static void readIMU(void);
@@ -71,6 +73,13 @@ CY_ISR(imu_handler)
         imuDataReady = TRUE;
     
     imu_interrupt_ClearPending();
+}
+
+CY_ISR(EncoderHandler)
+{
+    timerVal = Timer_encoder_ReadCapture();
+    Timer_encoder_ClearFIFO();
+    isr_encoder_ClearPending();
 }
 
 
@@ -109,7 +118,9 @@ uint8_t RCInit(void)
     
     regMap[REG_NOOP].data.u32 = 0;
     
-    encoder_counter_Start();
+    // encoder_counter_Start();
+    Timer_encoder_Start();
+    isr_encoder_StartEx(EncoderHandler);
     
     isr_left_echo_StartEx(ultrasonic_handler_left);
     isr_right_echo_StartEx(ultrasonic_handler_right);
@@ -150,8 +161,8 @@ void RcProcess(void)
  */
 void RcReadSpeedThread(void)
 {
-    regMap[REG_SPEED].data.u32 = encoder_counter_ReadCounter();
-    encoder_counter_WriteCounter(0);
+    regMap[REG_SPEED].data.u32 = timerVal;// encoder_counter_ReadCounter();
+    // encoder_counter_WriteCounter(0);
     vTaskDelay(100);
 }
 
@@ -208,11 +219,12 @@ regMapType* getRegRef(void)
 static void readTelemetry(void)
 {
     IMU_Data_t imuData;
-    
-    regMap[REG_SPEED         ].data.u32 = speed_count;
+
     regMap[REG_LEFT_DISTANCE ].data.u32 = leftDistance  / 58;
     regMap[REG_RIGHT_DISTANCE].data.u32 = rightDistance / 58;
     regMap[REG_FRONT_DISTANCE].data.u32 = frontDistance / 58;
+    
+    regMap[REG_SPEED].data.u32 = timerVal;// encoder_counter_ReadCounter();
     
     readIMU();
 }
