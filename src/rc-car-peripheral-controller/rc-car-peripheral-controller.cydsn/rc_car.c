@@ -23,6 +23,8 @@
 #define RD_SPEED_DATA   (speed_msb_Status << 8U) | ( speed_lsb_Status )
 #define SEL_MAX         (3U)
 
+#define SENSOR_RD_WEIGHT (0.001f)
+
 
 static uint32_t lastSpeed = 0;
 static regMapType regMap[ REG_WR_END ];
@@ -37,6 +39,11 @@ static volatile uint32_t frontDistance = 0.0;
 static volatile uint8_t imuDataReady = FALSE;
 
 static volatile uint8_t sensorSel = 0;
+
+// Denoise variables
+static float sensorLeft  = 0;
+static float sensorRight = 0;
+static float sensorFront = 0;
 
 static void readTelemetry(void);
 static void initIMU(void);
@@ -208,9 +215,13 @@ static void readTelemetry(void)
 {
     IMU_Data_t imuData;
 
-    regMap[REG_LEFT_DISTANCE ].data.u32 = leftDistance  / 58;
-    regMap[REG_RIGHT_DISTANCE].data.u32 = rightDistance / 58;
-    regMap[REG_FRONT_DISTANCE].data.u32 = frontDistance / 58;
+    avg(&sensorLeft, leftDistance, SENSOR_RD_WEIGHT);
+    avg(&sensorLeft, leftDistance, SENSOR_RD_WEIGHT);
+    avg(&sensorLeft, leftDistance, SENSOR_RD_WEIGHT);
+
+    regMap[REG_LEFT_DISTANCE ].data.u32 = (uint32_t)(sensorLeft)    / 58;
+    regMap[REG_RIGHT_DISTANCE].data.u32 = (uint32_t)(rightDistance) / 58;
+    regMap[REG_FRONT_DISTANCE].data.u32 = (uint32_t)(frontDistance) / 58;
     
     readIMU();
 }
