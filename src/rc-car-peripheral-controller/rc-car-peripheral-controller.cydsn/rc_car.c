@@ -102,6 +102,7 @@ uint8_t RCInit(void)
     MotorCtrlInit();
     
     PWM_trig_Start();
+    PWM_Servo_Start();
     
     Timer_echo_left_Start();
     Timer_echo_right_Start();

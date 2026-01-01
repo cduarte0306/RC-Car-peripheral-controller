@@ -68,7 +68,10 @@ static void write_char( EmbeddedCli *cli, char c );
 static void cmdReadReg( EmbeddedCli *cli, char *args, void *context );
 static void cmdWriteReg( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context );
+static void cmdSetMotorCtrlMode( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorSpeed( EmbeddedCli *cli, char *args, void *context );
+static void cmdSetMotorDir( EmbeddedCli *cli, char *args, void *context );
+static void cmdSetServo( EmbeddedCli *cli, char *args, void *context );
 static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context );
 static void cmdReset( EmbeddedCli *cli, char *args, void *context );
 static void cmdDisplayTelemetry( EmbeddedCli *cli, char *args, void *context );
@@ -141,6 +144,34 @@ static const CliCommandBinding cmd_bindings[] = {
             "\t\tset_motor_on_off_state <state>\r\n",
         
         TRUE, NULL, TRUE, FALSE, cmdSetMotorOnOffState
+    },
+    (CliCommandBinding){
+        "set_motor_dir",
+        
+        "Configures the motor direction\r\n"
+        "0: forward\r\n"
+        "1: reverse\r\n"
+            "\t\tset_motor_on_off_state <state>\r\n",
+        
+        TRUE, NULL, TRUE, FALSE, cmdSetMotorDir
+    },
+    (CliCommandBinding){
+        "set_motor_ctrl_mode",
+        
+        "Configures the motor control mode\r\n"
+        "0: CPU control\r\n"
+        "1: CLI control\r\n"
+            "\t\tset_motor_ctrl_mode <mode>\r\n",
+        
+        TRUE, NULL, TRUE, FALSE, cmdSetMotorCtrlMode
+    },
+    (CliCommandBinding){
+        "set_servo_val",
+        
+        "Configures servo value\r\nAccepted value range: 0 - 10000"
+            "\t\tset_servo_val <servo setting>\r\n",
+        
+        TRUE, NULL, TRUE, FALSE, cmdSetServo
     },
     (CliCommandBinding){
         "set_motor_speed_sp",
@@ -521,6 +552,9 @@ static void cmdSetMotorState( EmbeddedCli *cli, char *args, void *context )
     }
     
     regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32 = state;
+
+    // Configure the state control reg
+    motor_sel_Control = state;
 }
 
 
@@ -585,6 +619,95 @@ static void cmdSetMotorOnOffState( EmbeddedCli *cli, char *args, void *context )
     }
     
     regMap[REG_MOTOR_ONOFF_STATE].data.u32 = state;
+}
+
+
+static void cmdSetMotorCtrlMode( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    
+    const char *arg1 = embeddedCliGetToken(args, 1);
+    
+    if (arg1 == NULL)
+    {
+        vPrintf("Error: No argument provided");
+        return;
+    }
+    
+    char *endPtr = NULL;
+    uint8_t mode = strtoul(arg1, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid numeric argument '%s'\n", arg1);
+        return;
+    }
+    
+    if (mode > 1)
+    {
+        vPrintf("ERROR: Invalid control value: %d\r\n", mode);
+        return;
+    }
+    
+    vPrintf("\r\nSetting motor control mode to %d\r\n", mode);
+    sim_sel_Control = mode;
+}
+
+
+static void cmdSetMotorDir( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    
+    const char *arg1 = embeddedCliGetToken(args, 1);
+    
+    if (arg1 == NULL)
+    {
+        vPrintf("Error: No argument provided");
+        return;
+    }
+    
+    char *endPtr = NULL;
+    uint8_t dir = strtoul(arg1, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid numeric argument '%s'\n", arg1);
+        return;
+    }
+    
+    if (dir > 1)
+    {
+        vPrintf("ERROR: Invalid direction value: %d\r\n", dir);
+        return;
+    }
+    
+    dir_ctrl_Control = dir;
+}
+
+
+static void cmdSetServo( EmbeddedCli *cli, char *args, void *context )
+{
+    ( void ) cli;
+    ( void ) context;
+    
+    const char *arg1 = embeddedCliGetToken(args, 1);
+    
+    if (arg1 == NULL)
+    {
+        vPrintf("Error: No argument provided");
+        return;
+    }
+    
+    char *endPtr = NULL;
+    uint16_t servoVal = strtoul(arg1, &endPtr, 10);
+    if (*endPtr != '\0')
+    {
+        vPrintf("Error: Invalid numeric argument '%s'\n", arg1);
+        return;
+    }
+
+    vPrintf("Setting servo period value %lu\r\n", servoVal);
+    PWM_Servo_WriteCompare(servoVal);
 }
 
 
