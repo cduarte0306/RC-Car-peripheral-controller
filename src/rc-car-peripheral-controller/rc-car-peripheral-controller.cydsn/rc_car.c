@@ -40,6 +40,27 @@ static volatile uint8_t imuDataReady = FALSE;
 
 static volatile uint8_t sensorSel = 0;
 
+// IMU operations return codes
+enum
+{
+    ImuPass,
+    ImuFail,
+    ImuIntNotReady
+};
+
+static struct
+{
+    uint8_t sensorFStatus;
+    uint8_t sensorRStatus;
+    uint8_t sensorLStatus;
+    uint8_t encoderStatus;
+    uint8_t imuStatus;
+    
+    uint32_t FSensorWdog;
+    uint32_t LSensorWdog;
+    uint32_t RSensorWdog;
+} sensorHealth = {FALSE, FALSE, FALSE, TRUE, FALSE, 0, 0, 0};
+
 // Denoise variables
 static float sensorLeft  = 0;
 static float sensorRight = 0;
@@ -47,12 +68,13 @@ static float sensorFront = 0;
 
 static void readTelemetry(void);
 static void initIMU(void);
-static void readIMU(void);
+static uint8_t readIMU(void);
 
 
 CY_ISR(ultrasonic_handler_left)
 {
     leftDistance = (CY_GET_REG32(Timer_echo_left_PERIOD_LSB_PTR)) - (CY_GET_REG32(Timer_echo_left_CAPTURE_LSB_PTR));
+    sensorHealth.LSensorWdog = 0;
     Timer_echo_left_ReadStatusRegister();
 }
 
@@ -60,6 +82,7 @@ CY_ISR(ultrasonic_handler_left)
 CY_ISR(ultrasonic_handler_right)
 {
     rightDistance = (CY_GET_REG32(Timer_echo_right_PERIOD_LSB_PTR)) - (CY_GET_REG32(Timer_echo_right_CAPTURE_LSB_PTR));
+    sensorHealth.RSensorWdog = 0;
     Timer_echo_right_ReadStatusRegister();
 }
 
@@ -67,7 +90,14 @@ CY_ISR(ultrasonic_handler_right)
 CY_ISR(ultrasonic_handler_front)
 {
     frontDistance = (CY_GET_REG32(Timer_echo_front_PERIOD_LSB_PTR)) - (CY_GET_REG32(Timer_echo_front_CAPTURE_LSB_PTR));
+    sensorHealth.FSensorWdog = 0;
     Timer_echo_front_ReadStatusRegister();
+}
+
+
+CY_ISR(encoder_error_handler)
+{
+    sensorHealth.encoderStatus = FALSE;
 }
 
 
@@ -157,7 +187,12 @@ void RcProcess(void)
  */
 void RcReadSpeedThread(void)
 {
-    regMap[REG_SPEED].data.u32 = encoder_counter_ReadCounter();
+    uint32_t counterVal = encoder_counter_ReadCounter();
+    regMap[REG_SPEED].data.u32 = counterVal;
+    if (counterVal)
+    {
+        sensorHealth.encoderStatus = TRUE;
+    }
     encoder_counter_WriteCounter(0);
     vTaskDelay(100);
 }
@@ -223,12 +258,40 @@ static void readTelemetry(void)
     regMap[REG_LEFT_DISTANCE ].data.u32 = (uint32_t)(sensorLeft)    / 58;
     regMap[REG_RIGHT_DISTANCE].data.u32 = (uint32_t)(rightDistance) / 58;
     regMap[REG_FRONT_DISTANCE].data.u32 = (uint32_t)(frontDistance) / 58;
+
+    uint8_t ret = readIMU();
+    if (ret == ImuFail)
+    {
+        sensorHealth.imuStatus = FALSE;
+    }
     
-    readIMU();
+    // Count the sensor wdogs. If it's over 1000ms since we last saw an echo signal,
+    // we consider this sensor disconnected
+    if (sensorHealth.FSensorWdog ++ > 1000)
+    {
+        sensorHealth.sensorFStatus = FALSE;
+    }
+    
+    if (sensorHealth.LSensorWdog ++ > 1000)
+    {
+        sensorHealth.sensorLStatus = FALSE;
+    }
+    
+    if (sensorHealth.RSensorWdog ++ > 1000)
+    {
+        sensorHealth.sensorRStatus = FALSE;
+    }
+        
+    // Store sensor health status
+    regMap[REG_IMU_STATUS ].data.u32 = sensorHealth.imuStatus;
+    regMap[REG_SENSOR_F_STATUS ].data.u32 = sensorHealth.sensorFStatus;
+    regMap[REG_SENSOR_L_STATUS ].data.u32 = sensorHealth.sensorLStatus;
+    regMap[REG_SENSOR_R_STATUS ].data.u32 = sensorHealth.sensorRStatus;
+    regMap[REG_ENCODER_STATUS ].data.u32 = sensorHealth.encoderStatus;
 }
 
 
-static void readIMU(void)
+static uint8_t readIMU(void)
 {
     static uint8_t firstReadDone = FALSE;
     uint8_t ret;
@@ -240,19 +303,18 @@ static void readIMU(void)
             if((xGetElapsed(lastTime) > 500 ) && firstReadDone)
             {
                 vLoggingPrintf(DEBUG_WARN, LOG_RC_CAR, "app: %s | warn: IMU interrupt timeout. Clearing...\r\n", __FUNCTION__);
-                
                 ret = IMU_clearInt(&imuIntStatus);
                 if (ret != RET_PASS) {
                     vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: IMU_clearInt failed\r\n", __FUNCTION__);
                     // bail: don’t read data when status unknown
                     imuDataReady = FALSE;
-                    return;
+                    return ImuIntNotReady;
                 }
                 
                 lastTime = xGetTimestamp();
             }
         }
-        return;
+        return RET_PASS;
     }
     
     ret = IMU_clearInt(&imuIntStatus);
@@ -260,7 +322,7 @@ static void readIMU(void)
         vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: IMU_clearInt failed\r\n", __FUNCTION__);
         // bail: don’t read data when status unknown
         imuDataReady = FALSE;
-        return;
+        return ImuFail;
     }
 
     if ((imuIntStatus & INT_STATUS_DATA_RDY) == 0) {
@@ -268,7 +330,7 @@ static void readIMU(void)
         vLoggingPrintf(DEBUG_WARN, LOG_RC_CAR, "app: %s | warn: INT_STATUS=0x%02X (no DATA_RDY)\r\n",
                        __FUNCTION__, imuIntStatus);
         imuDataReady = FALSE;
-        return;
+        return ImuFail;
     }
 
     IMU_Data_t imuData;
@@ -277,7 +339,7 @@ static void readIMU(void)
     if (ret != RET_PASS) {
         vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: Failed to read data from IMU\r\n", __FUNCTION__);
         imuDataReady = FALSE;
-        return;
+        return ImuFail;
     }
 
     regMap[REG_ACCEL_X].data.f32 = imuData.accel_x / 2048.0f;   // g
@@ -296,7 +358,7 @@ static void readIMU(void)
         if (ret != RET_PASS) {
             vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: Failed to read data from IMU Magnetometer\r\n", __FUNCTION__);
             imuDataReady = FALSE;
-            return;
+            return ImuFail;
         }
         
         // Place magnetometer data in the register
@@ -314,13 +376,16 @@ static void readIMU(void)
         vLoggingPrintf(DEBUG_WARN, LOG_RC_CAR, "app: %s | warn: FIFO overflow\r\n", __FUNCTION__);
         // If you don’t use FIFO: explicitly disable & reset it once at init or call IMU_clearFIFO()
     }
+    
+    return ImuPass;
 }
 
 
 static void initIMU(void)
 {
     uint8_t ret;
-    
+    sensorHealth.imuStatus = FALSE;
+
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: initIMU | Initializng IMU...\r\n");
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: initIMU | Resetting IMU...\r\n");
     
@@ -331,7 +396,7 @@ static void initIMU(void)
         vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: initIMU | err: Could not reset IMU\r\n");
         return;
     }
-    
+
     vTaskDelay(100);  // Need to wait 100ms before resetting IMU
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: initIMU | Waking IMU...\r\n");
     
@@ -363,6 +428,7 @@ static void initIMU(void)
     // Initialization Complete
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "IMU_init | Initialization successful\r\n");
     
+    sensorHealth.imuStatus = TRUE;
     imuPresent = TRUE;
 }
 

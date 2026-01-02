@@ -44,6 +44,13 @@ typedef enum
     MAG_Z,
     
     REG_TEMPERATURE,
+
+    REG_SENSOR_F_STATUS,
+    REG_SENSOR_L_STATUS,
+    REG_SENSOR_R_STATUS,
+    
+    REG_ENCODER_STATUS,
+    REG_IMU_STATUS,
     
     REG_RO_END
 } registerEnumsReadOnly;
