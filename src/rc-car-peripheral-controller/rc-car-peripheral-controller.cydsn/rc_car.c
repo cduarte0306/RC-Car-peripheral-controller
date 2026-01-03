@@ -95,18 +95,18 @@ CY_ISR(ultrasonic_handler_front)
 }
 
 
-CY_ISR(encoder_error_handler)
-{
-    sensorHealth.encoderStatus = FALSE;
-}
-
-
 CY_ISR(imu_handler)
 {
     if(imuDataReady != TRUE)
         imuDataReady = TRUE;
     
     imu_interrupt_ClearPending();
+}
+
+
+CY_ISR(enc_error_handler)
+{
+    sensorHealth.encoderStatus = FALSE;
 }
 
 
@@ -147,10 +147,13 @@ uint8_t RCInit(void)
     regMap[REG_NOOP].data.u32 = 0;
     
     encoder_counter_Start();
-    
+    encoder_health_counter_Start();
+
     isr_left_echo_StartEx(ultrasonic_handler_left);
     isr_right_echo_StartEx(ultrasonic_handler_right);
     isr_front_echo_StartEx(ultrasonic_handler_front);
+    
+    isr_enc_error_StartEx(enc_error_handler);
     
     initIMU();
     
@@ -264,6 +267,10 @@ static void readTelemetry(void)
     {
         sensorHealth.imuStatus = FALSE;
     }
+    else if (ret == ImuPass)
+    {
+        sensorHealth.imuStatus = TRUE;
+    }
     
     // Count the sensor wdogs. If it's over 1000ms since we last saw an echo signal,
     // we consider this sensor disconnected
@@ -271,16 +278,13 @@ static void readTelemetry(void)
     {
         sensorHealth.sensorFStatus = FALSE;
     }
-    
-    if (sensorHealth.LSensorWdog ++ > 1000)
+    else
     {
-        sensorHealth.sensorLStatus = FALSE;
     }
-    
-    if (sensorHealth.RSensorWdog ++ > 1000)
-    {
-        sensorHealth.sensorRStatus = FALSE;
-    }
+
+    sensorHealth.sensorFStatus = (sensorHealth.FSensorWdog ++ > 1000) ? (FALSE) : (TRUE);
+    sensorHealth.sensorLStatus = (sensorHealth.LSensorWdog ++ > 1000) ? (FALSE) : (TRUE);
+    sensorHealth.sensorRStatus = (sensorHealth.RSensorWdog ++ > 1000) ? (FALSE) : (TRUE);
         
     // Store sensor health status
     regMap[REG_IMU_STATUS ].data.u32 = sensorHealth.imuStatus;
@@ -314,7 +318,7 @@ static uint8_t readIMU(void)
                 lastTime = xGetTimestamp();
             }
         }
-        return RET_PASS;
+        return ImuIntNotReady;
     }
     
     ret = IMU_clearInt(&imuIntStatus);
@@ -353,7 +357,6 @@ static uint8_t readIMU(void)
     // See if the magnetometer is ready
     if(IMU_magReady())
     {
-        
         ret = IMU_readMag(&magData);
         if (ret != RET_PASS) {
             vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: %s | err: Failed to read data from IMU Magnetometer\r\n", __FUNCTION__);
