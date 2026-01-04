@@ -272,16 +272,6 @@ static void readTelemetry(void)
         sensorHealth.imuStatus = TRUE;
     }
     
-    // Count the sensor wdogs. If it's over 1000ms since we last saw an echo signal,
-    // we consider this sensor disconnected
-    if (sensorHealth.FSensorWdog ++ > 1000)
-    {
-        sensorHealth.sensorFStatus = FALSE;
-    }
-    else
-    {
-    }
-
     sensorHealth.sensorFStatus = (sensorHealth.FSensorWdog ++ > 1000) ? (FALSE) : (TRUE);
     sensorHealth.sensorLStatus = (sensorHealth.LSensorWdog ++ > 1000) ? (FALSE) : (TRUE);
     sensorHealth.sensorRStatus = (sensorHealth.RSensorWdog ++ > 1000) ? (FALSE) : (TRUE);
