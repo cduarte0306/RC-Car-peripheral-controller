@@ -22,9 +22,10 @@
 *.bak
 
 # IDE metadata
-**/Generated_Source/
+# **/Generated_Source/
 .cydsn/GeneratedSrc/
-**/codegentemp/
+# **/codegentemp/
+**/index
 .cydsn/Design Wide Resources/
 
 # Build output folders
