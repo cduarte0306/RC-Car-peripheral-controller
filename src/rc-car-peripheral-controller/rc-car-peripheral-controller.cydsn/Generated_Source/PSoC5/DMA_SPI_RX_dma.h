@@ -17,7 +17,7 @@
 
 
 
-#include <CYDMAC.H>
+#include <CyDmac.h>
 #include <CYFITTER.H>
 
 #define DMA_SPI_RX__TD_TERMOUT_EN (((0 != DMA_SPI_RX__TERMOUT0_EN) ? TD_TERMOUT0_EN : 0) | \

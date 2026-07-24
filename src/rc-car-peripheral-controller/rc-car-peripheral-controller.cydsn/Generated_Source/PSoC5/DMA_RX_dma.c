@@ -17,8 +17,8 @@
 * disclaimers, and limitations in the end user license agreement accompanying 
 * the software package with which this file was provided.
 ********************************************************************************/
-#include <CYLIB.H>
-#include <CYDMAC.H>
+#include <CyLib.h>
+#include <CyDmac.h>
 #include <DMA_RX_dma.H>
 
 

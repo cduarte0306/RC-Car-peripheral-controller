@@ -1,0 +1,9 @@
+services:
+  arm-m3-dev:
+    build: .
+    image: rc-car-arm-m3
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    stdin_open: true
+    tty: true

@@ -17,7 +17,7 @@
 
 
 
-#include <CYDMAC.H>
+#include <CyDmac.h>
 #include <CYFITTER.H>
 
 #define DMA_RX__TD_TERMOUT_EN (((0 != DMA_RX__TERMOUT0_EN) ? TD_TERMOUT0_EN : 0) | \
