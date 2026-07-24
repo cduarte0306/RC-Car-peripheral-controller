@@ -19,7 +19,7 @@
 ********************************************************************************/
 #include <CyLib.h>
 #include <CyDmac.h>
-#include <DMA_SPI_RX_dma.H>
+#include <DMA_SPI_RX_dma.h>
 
 
 
