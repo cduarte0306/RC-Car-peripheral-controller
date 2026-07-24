@@ -1,6 +1,6 @@
 // ======================================================================
 // rc-car-peripheral-controller.v generated from TopDesign.cysch
-// 03/10/2026 at 22:52
+// 07/24/2026 at 00:11
 // This file is auto generated. ANY EDITS YOU MAKE MAY BE LOST WHEN THIS FILE IS REGENERATED!!!
 // ======================================================================
 
@@ -1298,55 +1298,17 @@ module Counter_v3_0_10 (
 
 endmodule
 
-// Component: and_v1_0
-`ifdef CY_BLK_DIR
-`undef CY_BLK_DIR
-`endif
-
-`ifdef WARP
-`define CY_BLK_DIR "C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\CyPrimitives\cyprimitives.cylib\and_v1_0"
-`include "C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\CyPrimitives\cyprimitives.cylib\and_v1_0\and_v1_0.v"
-`else
-`define CY_BLK_DIR "C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\CyPrimitives\cyprimitives.cylib\and_v1_0"
-`include "C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\CyPrimitives\cyprimitives.cylib\and_v1_0\and_v1_0.v"
-`endif
-
-// Component: demux_v1_10
-`ifdef CY_BLK_DIR
-`undef CY_BLK_DIR
-`endif
-
-`ifdef WARP
-`define CY_BLK_DIR "C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\CyPrimitives\cyprimitives.cylib\demux_v1_10"
-`include "C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\CyPrimitives\cyprimitives.cylib\demux_v1_10\demux_v1_10.v"
-`else
-`define CY_BLK_DIR "C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\CyPrimitives\cyprimitives.cylib\demux_v1_10"
-`include "C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\CyPrimitives\cyprimitives.cylib\demux_v1_10\demux_v1_10.v"
-`endif
-
 // top
 module top ;
 
           wire  enc_in;
-          wire  Net_2564;
-          wire  Net_2544;
-          wire  Net_2576;
-          wire  Net_2574;
-          wire  timer_us;
-          wire  Net_2573;
-          wire  trig;
-          wire  Net_2572;
-          wire  Net_2571;
-          wire  Net_2569;
-          wire  Net_2568;
-          wire  Net_2567;
-          wire  Net_2575;
           wire  Net_2521;
           wire  Net_2520;
           wire  Net_2519;
-          wire  clock_lf;
           wire  Net_2502;
+          wire  timer_us;
           wire  Net_2518;
+          wire  trig;
           wire  Net_2517;
           wire  Net_2516;
           wire  Net_2515;
@@ -1356,6 +1318,7 @@ module top ;
           wire  Net_1818;
           wire  Net_1817;
           wire  Net_1816;
+          wire  clock_lf;
           wire  Net_1815;
           wire  Net_1814;
           wire  Net_1813;
@@ -1365,7 +1328,6 @@ module top ;
           wire  Net_1658;
           wire  Net_1681;
           wire  Net_1680;
-          wire  clock_1;
           wire  Net_1678;
           wire  Net_1677;
           wire  Net_1676;
@@ -1377,6 +1339,7 @@ module top ;
           wire  Net_1380;
           wire  Net_1379;
           wire  Net_1378;
+          wire  clock_1;
           wire  Net_1377;
           wire  Net_1376;
           wire  Net_1375;
@@ -1446,7 +1409,6 @@ module top ;
           wire  Net_183;
           wire  Net_182;
           wire  Net_181;
-          wire  clock_2;
           wire  Net_180;
           wire  Net_179;
           wire  Net_178;
@@ -1458,6 +1420,7 @@ module top ;
           wire  Net_172;
           wire  Net_171;
           wire  Net_170;
+          wire  clock_2;
           wire  Net_169;
           wire  Net_168;
           wire  Net_167;
@@ -1484,11 +1447,8 @@ module top ;
           wire  Net_2212;
           wire  Net_2211;
           wire  Net_2210;
-          wire  Net_2565;
-          wire  Net_2543;
           wire  Net_95;
           wire  Net_94;
-          wire  pwm_out_bus;
           wire  Net_93;
           wire  Net_92;
           wire  Net_90;
@@ -1502,14 +1462,12 @@ module top ;
           wire  Net_1072;
           wire  Net_1067;
           wire  Net_1066;
+          wire  pwm_out_bus;
           wire  Net_1065;
           wire  Net_154;
           wire  Net_192;
           wire  Net_155;
-          wire  Net_2566;
-          wire  Net_1029;
           wire  Net_1123;
-          wire  sim_sel_bus;
           wire  Net_2214;
           wire  Net_505;
           wire  Net_1169;
@@ -1525,6 +1483,8 @@ module top ;
           wire  Net_1052;
           wire  Net_82;
           wire  Net_1044;
+          wire  sim_sel_bus;
+          wire  Net_1029;
           wire  Net_1023;
           wire  Net_930;
           wire  Net_931;
@@ -2028,7 +1988,7 @@ module top ;
 		Rx_1
 		 (.oe(tmpOE__Rx_1_net),
 		  .y({1'b0}),
-		  .fb({Net_2543}),
+		  .fb({Net_87}),
 		  .io({tmpIO_0__Rx_1_net[0:0]}),
 		  .siovref(tmpSIOVREF__Rx_1_net),
 		  .interrupt({tmpINTERRUPT_0__Rx_1_net[0:0]}),
@@ -2102,7 +2062,7 @@ module top ;
 		  .input_buffer_sel(2'b00))
 		Tx_1
 		 (.oe(tmpOE__Tx_1_net),
-		  .y({Net_2565}),
+		  .y({Net_1029}),
 		  .fb({tmpFB_0__Tx_1_net[0:0]}),
 		  .io({tmpIO_0__Tx_1_net[0:0]}),
 		  .siovref(tmpSIOVREF__Tx_1_net),
@@ -3759,207 +3719,6 @@ module top ;
 
 
     assign Net_2214 = 1'h0;
-
-    CyControlReg_v1_80 tx_out_sel (
-        .clock(1'b0),
-        .control_0(Net_2566),
-        .control_1(Net_2567),
-        .control_2(Net_2568),
-        .control_3(Net_2569),
-        .control_4(Net_2571),
-        .control_5(Net_2572),
-        .control_6(Net_2573),
-        .control_7(Net_2574),
-        .reset(1'b0));
-    defparam tx_out_sel.Bit0Mode = 0;
-    defparam tx_out_sel.Bit1Mode = 0;
-    defparam tx_out_sel.Bit2Mode = 0;
-    defparam tx_out_sel.Bit3Mode = 0;
-    defparam tx_out_sel.Bit4Mode = 0;
-    defparam tx_out_sel.Bit5Mode = 0;
-    defparam tx_out_sel.Bit6Mode = 0;
-    defparam tx_out_sel.Bit7Mode = 0;
-    defparam tx_out_sel.BitValue = 0;
-    defparam tx_out_sel.BusDisplay = 0;
-    defparam tx_out_sel.ExtrReset = 0;
-    defparam tx_out_sel.NumOutputs = 1;
-
-	wire [0:0] tmpOE__Rx_Jetson_net;
-	wire [0:0] tmpIO_0__Rx_Jetson_net;
-	wire [0:0] tmpINTERRUPT_0__Rx_Jetson_net;
-	electrical [0:0] tmpSIOVREF__Rx_Jetson_net;
-
-	cy_psoc3_pins_v1_10
-		#(.id("4aca627c-52d0-4327-af9f-b4fda68e9e5e"),
-		  .drive_mode(3'b001),
-		  .ibuf_enabled(1'b1),
-		  .init_dr_st(1'b0),
-		  .input_clk_en(0),
-		  .input_sync(1'b1),
-		  .input_sync_mode(1'b0),
-		  .intr_mode(2'b00),
-		  .invert_in_clock(0),
-		  .invert_in_clock_en(0),
-		  .invert_in_reset(0),
-		  .invert_out_clock(0),
-		  .invert_out_clock_en(0),
-		  .invert_out_reset(0),
-		  .io_voltage(""),
-		  .layout_mode("CONTIGUOUS"),
-		  .oe_conn(1'b0),
-		  .oe_reset(0),
-		  .oe_sync(1'b0),
-		  .output_clk_en(0),
-		  .output_clock_mode(1'b0),
-		  .output_conn(1'b0),
-		  .output_mode(1'b0),
-		  .output_reset(0),
-		  .output_sync(1'b0),
-		  .pa_in_clock(-1),
-		  .pa_in_clock_en(-1),
-		  .pa_in_reset(-1),
-		  .pa_out_clock(-1),
-		  .pa_out_clock_en(-1),
-		  .pa_out_reset(-1),
-		  .pin_aliases(""),
-		  .pin_mode("I"),
-		  .por_state(4),
-		  .sio_group_cnt(0),
-		  .sio_hyst(1'b1),
-		  .sio_ibuf(""),
-		  .sio_info(2'b00),
-		  .sio_obuf(""),
-		  .sio_refsel(""),
-		  .sio_vtrip(""),
-		  .sio_hifreq(""),
-		  .sio_vohsel(""),
-		  .slew_rate(1'b0),
-		  .spanning(0),
-		  .use_annotation(1'b0),
-		  .vtrip(2'b00),
-		  .width(1),
-		  .ovt_hyst_trim(1'b0),
-		  .ovt_needed(1'b0),
-		  .ovt_slew_control(2'b00),
-		  .input_buffer_sel(2'b00))
-		Rx_Jetson
-		 (.oe(tmpOE__Rx_Jetson_net),
-		  .y({1'b0}),
-		  .fb({Net_2544}),
-		  .io({tmpIO_0__Rx_Jetson_net[0:0]}),
-		  .siovref(tmpSIOVREF__Rx_Jetson_net),
-		  .interrupt({tmpINTERRUPT_0__Rx_Jetson_net[0:0]}),
-		  .in_clock({1'b0}),
-		  .in_clock_en({1'b1}),
-		  .in_reset({1'b0}),
-		  .out_clock({1'b0}),
-		  .out_clock_en({1'b1}),
-		  .out_reset({1'b0}));
-
-	assign tmpOE__Rx_Jetson_net = (`CYDEV_CHIP_MEMBER_USED == `CYDEV_CHIP_MEMBER_3A && `CYDEV_CHIP_REVISION_USED < `CYDEV_CHIP_REVISION_3A_ES3) ? ~{1'b1} : {1'b1};
-
-	wire [0:0] tmpOE__Tx_Jetson_net;
-	wire [0:0] tmpFB_0__Tx_Jetson_net;
-	wire [0:0] tmpIO_0__Tx_Jetson_net;
-	wire [0:0] tmpINTERRUPT_0__Tx_Jetson_net;
-	electrical [0:0] tmpSIOVREF__Tx_Jetson_net;
-
-	cy_psoc3_pins_v1_10
-		#(.id("524b5340-51b0-4f81-85ee-3e99968949fb"),
-		  .drive_mode(3'b110),
-		  .ibuf_enabled(1'b1),
-		  .init_dr_st(1'b1),
-		  .input_clk_en(0),
-		  .input_sync(1'b1),
-		  .input_sync_mode(1'b0),
-		  .intr_mode(2'b00),
-		  .invert_in_clock(0),
-		  .invert_in_clock_en(0),
-		  .invert_in_reset(0),
-		  .invert_out_clock(0),
-		  .invert_out_clock_en(0),
-		  .invert_out_reset(0),
-		  .io_voltage(""),
-		  .layout_mode("CONTIGUOUS"),
-		  .oe_conn(1'b0),
-		  .oe_reset(0),
-		  .oe_sync(1'b0),
-		  .output_clk_en(0),
-		  .output_clock_mode(1'b0),
-		  .output_conn(1'b1),
-		  .output_mode(1'b0),
-		  .output_reset(0),
-		  .output_sync(1'b0),
-		  .pa_in_clock(-1),
-		  .pa_in_clock_en(-1),
-		  .pa_in_reset(-1),
-		  .pa_out_clock(-1),
-		  .pa_out_clock_en(-1),
-		  .pa_out_reset(-1),
-		  .pin_aliases(""),
-		  .pin_mode("O"),
-		  .por_state(4),
-		  .sio_group_cnt(0),
-		  .sio_hyst(1'b1),
-		  .sio_ibuf(""),
-		  .sio_info(2'b00),
-		  .sio_obuf(""),
-		  .sio_refsel(""),
-		  .sio_vtrip(""),
-		  .sio_hifreq(""),
-		  .sio_vohsel(""),
-		  .slew_rate(1'b0),
-		  .spanning(0),
-		  .use_annotation(1'b0),
-		  .vtrip(2'b10),
-		  .width(1),
-		  .ovt_hyst_trim(1'b0),
-		  .ovt_needed(1'b0),
-		  .ovt_slew_control(2'b00),
-		  .input_buffer_sel(2'b00))
-		Tx_Jetson
-		 (.oe(tmpOE__Tx_Jetson_net),
-		  .y({Net_2564}),
-		  .fb({tmpFB_0__Tx_Jetson_net[0:0]}),
-		  .io({tmpIO_0__Tx_Jetson_net[0:0]}),
-		  .siovref(tmpSIOVREF__Tx_Jetson_net),
-		  .interrupt({tmpINTERRUPT_0__Tx_Jetson_net[0:0]}),
-		  .in_clock({1'b0}),
-		  .in_clock_en({1'b1}),
-		  .in_reset({1'b0}),
-		  .out_clock({1'b0}),
-		  .out_clock_en({1'b1}),
-		  .out_reset({1'b0}));
-
-	assign tmpOE__Tx_Jetson_net = (`CYDEV_CHIP_MEMBER_USED == `CYDEV_CHIP_MEMBER_3A && `CYDEV_CHIP_REVISION_USED < `CYDEV_CHIP_REVISION_3A_ES3) ? ~{1'b1} : {1'b1};
-
-
-    assign Net_87 = Net_2543 & Net_2544;
-
-    // -- De Mux start --
-    if (1)
-    begin : demux_1
-        reg  tmp__demux_1_0_reg;
-        reg  tmp__demux_1_1_reg;
-        always @(Net_1029 or Net_2566)
-        begin
-            case (Net_2566)
-                1'b0:
-                begin
-                    tmp__demux_1_0_reg = Net_1029;
-                    tmp__demux_1_1_reg = 1'b0;
-                end
-                1'b1:
-                begin
-                    tmp__demux_1_0_reg = 1'b0;
-                    tmp__demux_1_1_reg = Net_1029;
-                end
-            endcase
-        end
-        assign Net_2565 = tmp__demux_1_0_reg;
-        assign Net_2564 = tmp__demux_1_1_reg;
-    end
-    // -- De Mux end --
 
 
 

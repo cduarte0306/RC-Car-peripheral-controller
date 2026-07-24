@@ -92,7 +92,6 @@
 #include "Clock_3.h"
 #include "encoder_health_counter.h"
 #include "isr_enc_error.h"
-#include "tx_out_sel.h"
 #include "SPIS_IntClock.h"
 #include "UART_Debug_IntClock.h"
 #include "core_cm3_psoc5.h"
