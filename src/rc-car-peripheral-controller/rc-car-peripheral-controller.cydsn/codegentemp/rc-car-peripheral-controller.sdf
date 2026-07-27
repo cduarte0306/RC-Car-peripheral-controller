@@ -1,6 +1,6 @@
 (DELAYFILE
  (SDFVERSION "IEEE 1497 4.0")
- (DATE "2026-07-24T04:11:59Z")
+ (DATE "2026-07-27T04:01:11Z")
  (DESIGN "rc-car-peripheral-controller")
  (VENDOR "Cypress Semiconductor")
  (PROGRAM "PSoC Creator")
