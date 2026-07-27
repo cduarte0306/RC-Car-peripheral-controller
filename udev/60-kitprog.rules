@@ -1,0 +1,4 @@
+# Grants non-root access to the Cypress/Infineon KitProg USB debug probe
+# used to program/debug the PSoC 5LP over the openocd/psoc5lp-kitprog.cfg
+# OpenOCD config.
+SUBSYSTEM=="usb", ATTR{idVendor}=="04b4", ATTR{idProduct}=="f139", MODE="0666", GROUP="plugdev"

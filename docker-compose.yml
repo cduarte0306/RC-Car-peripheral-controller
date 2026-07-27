@@ -7,3 +7,17 @@ services:
     working_dir: /workspace
     stdin_open: true
     tty: true
+    # USB passthrough for the KitProg debug probe (used by openocd inside the
+    # container). Bind-mounting the whole bus, plus the device cgroup rule for
+    # USB's major number (189), keeps this working even if the KitProg
+    # re-enumerates under a different bus/device number after a replug.
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    device_cgroup_rules:
+      - "c 189:* rmw"
+    # The KitProg exposes a HID interface that Linux's usbhid kernel driver
+    # auto-claims. openocd/libusb needs to detach it before it can talk to
+    # that interface directly, which requires this extra capability beyond
+    # plain device passthrough.
+    cap_add:
+      - SYS_ADMIN

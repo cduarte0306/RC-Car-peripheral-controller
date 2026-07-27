@@ -24,6 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 \
         net-tools \
         iproute2 \
+        openocd \
+        libusb-1.0-0-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget -qO /tmp/arm-toolchain.tar.xz "${ARM_TOOLCHAIN_URL}" \

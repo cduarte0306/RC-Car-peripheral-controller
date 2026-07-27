@@ -11,5 +11,8 @@ docker build -t "${IMAGE_NAME}" "${REPO_ROOT}"
 docker run --rm -it \
     -v "${REPO_ROOT}:/workspace" \
     -w /workspace \
+    --device=/dev/bus/usb:/dev/bus/usb \
+    --device-cgroup-rule="c 189:* rmw" \
+    --cap-add=SYS_ADMIN \
     "${IMAGE_NAME}" \
     "$@"

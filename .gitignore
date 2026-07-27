@@ -60,6 +60,7 @@ Thumbs.db
 *.xml
 
 *.txt
+!CMakeLists.txt
 *.log
 Debug/
 
