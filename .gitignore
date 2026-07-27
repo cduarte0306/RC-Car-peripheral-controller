@@ -22,9 +22,10 @@
 *.bak
 
 # IDE metadata
-**/Generated_Source/
+# **/Generated_Source/
 .cydsn/GeneratedSrc/
-**/codegentemp/
+# **/codegentemp/
+**/index
 .cydsn/Design Wide Resources/
 
 # Build output folders
@@ -59,5 +60,13 @@ Thumbs.db
 *.xml
 
 *.txt
+!CMakeLists.txt
 *.log
 Debug/
+
+# CMake build folders
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+build/
