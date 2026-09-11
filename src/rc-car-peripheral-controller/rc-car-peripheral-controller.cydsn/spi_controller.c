@@ -61,7 +61,7 @@ uint8_t retRegStatus;
 static uint8_t configRxDMA(void);
 
 
-static void vLEDMonitorTask(void *pvParameters);
+static void vConnectionMonitorTask(void *pvParameters);
 
 
 CY_ISR(txHandler)
@@ -188,7 +188,7 @@ uint8_t SPI_controller_start(void)
     
     /* Create a simple task */
     ret = xTaskCreate(
-        vLEDMonitorTask,               /* Task function */
+        vConnectionMonitorTask,               /* Task function */
         "led-monitor",                   /* Task name (for debugging) */
         configMINIMAL_STACK_SIZE,  /* Stack size */
         NULL,                      /* Task input parameter */
@@ -282,7 +282,7 @@ static uint8_t configRxDMA(void)
 
 
 /* Simple task to blink an LED */
-static void vLEDMonitorTask(void* pvParameters)
+static void vConnectionMonitorTask(void* pvParameters)
 {
     (void) pvParameters;
     uint8 ledState = pdFALSE;
@@ -301,7 +301,6 @@ static void vLEDMonitorTask(void* pvParameters)
 
         uint8 staticBits = (LED_DR & (uint8)(~LED_MASK));
         LED_DR = staticBits | ((uint8)(ledState << LED_SHIFT) & LED_MASK);
-        
         vTaskDelay(500);
     }
 }

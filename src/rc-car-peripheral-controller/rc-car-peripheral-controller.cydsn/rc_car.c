@@ -17,14 +17,126 @@
 #include "vers.h"
 #include "imu-driver.h"
 
+#include "fsm.h"
 #include <project.h>
 
+#include "app_utils.h"
 
 #define RD_SPEED_DATA   (speed_msb_Status << 8U) | ( speed_lsb_Status )
 #define SEL_MAX         (3U)
 
 #define SENSOR_RD_WEIGHT (0.001f)
 
+static void readTelemetry(void);
+static uint8_t initIMU(void);
+static uint8_t readIMU(void);
+
+static void RcFsmInitHndl   (void* arg);
+static void RcFsmInitRcHndl (void* arg);
+static void RcFsmStopHndl   (void* arg);
+static void RcFsmIdleHndl   (void* arg);
+static void RcFsmRunningHndl(void* arg);
+static void RcFsmReWindHndl (void* arg);
+
+// FSM states
+enum
+{
+    RcFsmInit,
+    RcFsmInitRc,
+    RcFsmStop,
+    RcFsmIdle,
+    RcFsmRunning,
+    RcFsmRewindInit,
+};
+
+enum
+{
+    RcDoInit,
+    RcDoInitRc,
+    RcDoStop,
+    RcDoIdle,
+    RcDoRunning,
+    RcDoRewind,
+};
+
+// Transitions definitions
+static tTransitions transitionsAtInit[] =
+{
+    { RcFsmIdle,       RcDoIdle,    NULL },
+    { RcFsmRunning,    RcDoRunning, NULL },
+    { RcFsmStop,       RcDoStop,    NULL },
+    { RcFsmRewindInit, RcDoRewind,  NULL },
+};
+
+static tTransitions transitionsAtInitRc[] =
+{
+    { RcFsmIdle,       RcDoIdle,    NULL },
+    { RcFsmRunning,    RcDoRunning, NULL },
+    { RcFsmStop,       RcDoStop,    NULL },
+};
+
+static tTransitions transitionsAtStop[] =
+{
+    { RcFsmInitRc,  RcDoInitRc,  NULL },
+    { RcFsmRunning, RcDoRunning, NULL },
+    { RcFsmStop,    RcDoStop,    NULL },
+};
+
+static tTransitions transitionsAtIdle[] =
+{
+    { RcFsmStop,    RcDoStop,    NULL },
+    { RcFsmRunning, RcDoRunning, NULL },
+    { RcFsmIdle,    RcDoIdle,    NULL },
+};
+
+static tTransitions transitionsAtRunning[] =
+{
+    { RcFsmStop,    RcDoStop,    NULL },
+    { RcFsmIdle,    RcDoIdle,    NULL },
+    { RcFsmRunning, RcDoRunning, NULL },
+};
+
+static tTransitions transitionsAtRewind[] =
+{
+    { RcFsmInit,    RcDoInit,    NULL },
+    { RcFsmIdle,    RcDoIdle,    NULL }
+};
+
+static tFsm fsmConfig[] =
+{
+    {
+        RcFsmInit,
+        { RcFsmInit, ARR_LEN(transitionsAtInit), RcFsmInitHndl, transitionsAtInit }
+    },
+    {
+        RcFsmInitRc,
+        { RcFsmInitRc, ARR_LEN(transitionsAtInitRc), RcFsmInitRcHndl, transitionsAtInitRc }
+    },
+    {
+        RcFsmStop,
+        { RcFsmStop, ARR_LEN(transitionsAtStop), RcFsmStopHndl, transitionsAtStop }
+    },
+    {
+        RcFsmIdle,
+        { RcFsmIdle, ARR_LEN(transitionsAtIdle), RcFsmIdleHndl, transitionsAtIdle }
+    },
+    {
+        RcFsmRunning,
+        { RcFsmRunning, ARR_LEN(transitionsAtRunning), RcFsmRunningHndl, transitionsAtRunning }
+    },
+    {
+        RcFsmRewindInit,
+        { RcFsmRewindInit, ARR_LEN(transitionsAtRewind), RcFsmReWindHndl, transitionsAtRewind }
+    },
+};
+
+static tFsmHandle FsmHandle =
+{
+    .base     = NULL,
+    .stateHdl = NULL,
+    .numSteps = 0,
+    .started  = FALSE
+};
 
 static uint32_t lastSpeed = 0;
 static regMapType regMap[ REG_WR_END ];
@@ -66,18 +178,12 @@ static float sensorLeft  = 0;
 static float sensorRight = 0;
 static float sensorFront = 0;
 
-static void readTelemetry(void);
-static void initIMU(void);
-static uint8_t readIMU(void);
-
-
 CY_ISR(ultrasonic_handler_left)
 {
     leftDistance = (CY_GET_REG32(Timer_echo_left_PERIOD_LSB_PTR)) - (CY_GET_REG32(Timer_echo_left_CAPTURE_LSB_PTR));
     sensorHealth.LSensorWdog = 0;
     Timer_echo_left_ReadStatusRegister();
 }
-
 
 CY_ISR(ultrasonic_handler_right)
 {
@@ -86,7 +192,6 @@ CY_ISR(ultrasonic_handler_right)
     Timer_echo_right_ReadStatusRegister();
 }
 
-
 CY_ISR(ultrasonic_handler_front)
 {
     frontDistance = (CY_GET_REG32(Timer_echo_front_PERIOD_LSB_PTR)) - (CY_GET_REG32(Timer_echo_front_CAPTURE_LSB_PTR));
@@ -94,21 +199,18 @@ CY_ISR(ultrasonic_handler_front)
     Timer_echo_front_ReadStatusRegister();
 }
 
-
 CY_ISR(imu_handler)
 {
     if(imuDataReady != TRUE)
         imuDataReady = TRUE;
-    
+
     imu_interrupt_ClearPending();
 }
-
 
 CY_ISR(enc_error_handler)
 {
     sensorHealth.encoderStatus = FALSE;
 }
-
 
 /**
  * @brief Initializes the RC car components
@@ -117,54 +219,12 @@ CY_ISR(enc_error_handler)
  */
 uint8_t RCInit(void)
 {
-    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing RC car\r\n");
-    
-    for (uint8 idx = REG_NOOP; idx < REG_RO_END; idx++)
-    {
-        regMap[idx].regType = READ_ONLY;
-    }
-    
-    for (uint8 idx = REG_RO_END; idx < REG_WR_END; idx++)
-    {
-        regMap[idx].regType = READ_WRITE;
-    }
-    
-    MotorCtrlInit();
-    
-    PWM_trig_Start();
-    PWM_Servo_Start();
-    
-    Timer_echo_left_Start();
-    Timer_echo_right_Start();
-    Timer_echo_front_Start();
-    
-    I2C_Start();
-    I2C_MasterClearStatus();
-    
-    // Set the version in the registers
-    getVers(&regMap[REG_VER_MAJOR].data.u8, &regMap[REG_VER_MINOR].data.u8, &regMap[REG_VER_BUILD].data.u8);
-    
-    regMap[REG_NOOP].data.u32 = 0;
-    
-    encoder_counter_Start();
-    encoder_health_counter_Start();
-
-    isr_left_echo_StartEx(ultrasonic_handler_left);
-    isr_right_echo_StartEx(ultrasonic_handler_right);
-    isr_front_echo_StartEx(ultrasonic_handler_front);
-    
-    isr_enc_error_StartEx(enc_error_handler);
-    
-    initIMU();
-    
-    imu_interrupt_StartEx(imu_handler);
-    
-    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | RC Car initialized\r\n");
-    
+    // Init FSM
+    uint8_t ret = FSM_Init(&FsmHandle, fsmConfig, RcFsmInit, ARR_LEN(fsmConfig));
+    CHECK(ret != pdFAIL);
     lastTime = xGetTimestamp();
     return RET_PASS;
 }
-
 
 /**
  * @brief Processes telemetry data from the RC car
@@ -172,17 +232,16 @@ uint8_t RCInit(void)
  */
 void RcProcess(void)
 {
-    readTelemetry();
+    FSM_Poll(&FsmHandle, NULL);
+    // readTelemetry();
     
-    // Process the values in the registers
-    MotorCtrlSetOnOffState(regMap[REG_MOTOR_ONOFF_STATE].data.u8);
-    MotorCtrlsetSpeedSetPoint(regMap[REG_SPEED_SETPOINT].data.u32);
-    MotorCtrlSetState(regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32);
+    // // Process the values in the registers
+    // MotorCtrlSetOnOffState(regMap[REG_MOTOR_ONOFF_STATE].data.u8);
+    // MotorCtrlsetSpeedSetPoint(regMap[REG_SPEED_SETPOINT].data.u32);
+    // MotorCtrlSetState(regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32);
     
-    MotrorCtrlProcess(regMap[REG_SPEED].data.u32);
-
+    // MotorCtrlProcess(regMap[REG_SPEED].data.u32);
 }
-
 
 /**
  * @brief Reads the speed data from the RC car
@@ -200,6 +259,23 @@ void RcReadSpeedThread(void)
     vTaskDelay(100);
 }
 
+/**
+ * @brief Set FSM to wind down all motor operations
+ * 
+ */
+void RcDown(void)
+{
+    CHECK(FSM_Step(&FsmHandle, RcDoStop));
+}
+
+/**
+ * @brief Set FSM to bring up all motor operations
+ * 
+ */
+void RcUp(void)
+{
+    CHECK(FSM_Step(&FsmHandle, RcDoInitRc));
+}
 
 /**
  * @brief Read from the register map
@@ -217,7 +293,6 @@ uint8_t rdReg(uint8_t reg, regMapType* val)
     return RET_PASS;
 }
 
-
 /**
  * @brief Write to the register map
  * 
@@ -234,7 +309,6 @@ uint8_t wrtReg(uint8_t reg, regMapType* val)
     return RET_PASS;
 }
 
-
 /**
  * @brief Get reference to the register map
  * 
@@ -244,7 +318,6 @@ regMapType* getRegRef(void)
 {
     return regMap;
 }
-
 
 /**
  * @brief Reads telemetry data from the RC car
@@ -283,7 +356,6 @@ static void readTelemetry(void)
     regMap[REG_SENSOR_R_STATUS ].data.u32 = sensorHealth.sensorRStatus;
     regMap[REG_ENCODER_STATUS ].data.u32 = sensorHealth.encoderStatus;
 }
-
 
 static uint8_t readIMU(void)
 {
@@ -373,8 +445,7 @@ static uint8_t readIMU(void)
     return ImuPass;
 }
 
-
-static void initIMU(void)
+static uint8_t initIMU(void)
 {
     uint8_t ret;
     sensorHealth.imuStatus = FALSE;
@@ -387,17 +458,17 @@ static void initIMU(void)
     if (!ret)
     {
         vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: initIMU | err: Could not reset IMU\r\n");
-        return;
+        return RET_FAIL;
     }
 
     vTaskDelay(100);  // Need to wait 100ms before resetting IMU
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: initIMU | Waking IMU...\r\n");
-    
+
     ret = IMU_wake();
     if (!ret)
     {
         vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: initIMU | err: Could not wake IMU\r\n");
-        return;
+        return RET_FAIL;
     }
     
     vTaskDelay(30);  // Let the Unit wake up
@@ -407,7 +478,7 @@ static void initIMU(void)
     if (!ret)
     {
         vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: initIMU | err: Could not detect IMU\r\n");
-        return;
+        return RET_FAIL;
     }
     
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: initIMU | Initializing registers...\r\n");
@@ -415,15 +486,93 @@ static void initIMU(void)
     if (!ret)
     {
         vLoggingPrintf(DEBUG_ERROR, LOG_RC_CAR, "app: initIMU | err: Could not initialize IMU\r\n");
-        return;
+        return RET_FAIL;
     }
     
     // Initialization Complete
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "IMU_init | Initialization successful\r\n");
-    
     sensorHealth.imuStatus = TRUE;
     imuPresent = TRUE;
+    return RET_PASS;
 }
 
+static void RcFsmInitHndl(void* arg)
+{
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing RC car\r\n");
+
+    for (uint8 idx = REG_NOOP; idx < REG_RO_END; idx++)
+    {
+        regMap[idx].regType = READ_ONLY;
+    }
+
+    for (uint8 idx = REG_RO_END; idx < REG_WR_END; idx++)
+    {
+        regMap[idx].regType = READ_WRITE;
+    }
+
+    MotorCtrlInit();
+    PWM_trig_Start();
+    PWM_Servo_Start();
+
+    Timer_echo_left_Start();
+    Timer_echo_right_Start();
+    Timer_echo_front_Start();
+
+    I2C_Start();
+    I2C_MasterClearStatus();
+
+    // Set the version in the registers
+    getVers(&regMap[REG_VER_MAJOR].data.u8, &regMap[REG_VER_MINOR].data.u8, &regMap[REG_VER_BUILD].data.u8);
+    regMap[REG_NOOP].data.u32 = 0;
+
+    encoder_counter_Start();
+    encoder_health_counter_Start();
+
+    isr_left_echo_StartEx(ultrasonic_handler_left);
+    isr_right_echo_StartEx(ultrasonic_handler_right);
+    isr_front_echo_StartEx(ultrasonic_handler_front);
+
+    isr_enc_error_StartEx(enc_error_handler);
+    if (initIMU() != RET_PASS)
+    {
+        FSM_Step(&FsmHandle, RcDoRewind);  // Lets enter the rewind handler
+        return;
+    }
+
+    imu_interrupt_StartEx(imu_handler);
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | RC Car initialized\r\n");
+    CHECK(FSM_Step(&FsmHandle, RcFsmRunning) != FALSE);
+}
+
+static void RcFsmInitRcHndl(void* arg)
+{
+
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing motor\r\n");
+    CHECK(FSM_Step(&FsmHandle, RcFsmRunning) != FALSE);
+}
+
+static void RcFsmReWindHndl(void* arg)
+{
+    vTaskDelay(pdMS_TO_TICKS(1000));  // Wait 1 second before retrying
+    CHECK(FSM_Step(&FsmHandle, RcDoInit));
+}
+
+static void RcFsmStopHndl(void* arg)
+{
+}
+
+static void RcFsmIdleHndl(void* arg)
+{
+}
+
+static void RcFsmRunningHndl(void* arg)
+{
+    readTelemetry();
+    // Process the values in the registers
+    MotorCtrlSetOnOffState(regMap[REG_MOTOR_ONOFF_STATE].data.u8);
+    MotorCtrlsetSpeedSetPoint(regMap[REG_SPEED_SETPOINT].data.u32);
+    MotorCtrlSetState(regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32);
+    MotorCtrlProcess(regMap[REG_SPEED].data.u32);
+}
 
 /* [] END OF FILE */

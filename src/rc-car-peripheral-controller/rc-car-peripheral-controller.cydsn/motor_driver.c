@@ -67,7 +67,7 @@ uint8 MotorCtrlSetPid(pid_t* pid_)
  * 
  * @param speed Speed of the motor to be controlled.
  */
-void MotrorCtrlProcess(uint32_t speed)
+void MotorCtrlProcess(uint32_t speed)
 {
     doCruiseControl(speed);
 

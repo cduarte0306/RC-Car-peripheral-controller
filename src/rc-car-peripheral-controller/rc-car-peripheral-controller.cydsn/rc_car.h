@@ -76,10 +76,11 @@ typedef struct
 uint8_t RCInit(void);
 void RcProcess(void);
 void RcReadSpeedThread( void );
+void RcDown(void);
+void RcUp(void);
 regMapType* getRegRef(void);
 uint8_t rdReg(uint8_t reg, regMapType* val);
 uint8_t wrtReg(uint8_t reg, regMapType* val);
-
     
 #endif
 

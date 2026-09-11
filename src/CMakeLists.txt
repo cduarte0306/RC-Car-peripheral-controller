@@ -25,6 +25,7 @@ set(APP_SOURCES
     ${CYDSN_DIR}/app_cli.c
     ${CYDSN_DIR}/vers.c
     ${CYDSN_DIR}/exceptions.c
+    ${CYDSN_DIR}/fsm.c
 )
 
 # --- FreeRTOS kernel ---
@@ -109,6 +110,10 @@ set(CY_PSEUDO_SECTION_STRIP
 )
 
 # --- Post-build: .hex/.bin + size report ---
+# From cm3gcc.ld: rom (flash) = 262144 bytes, ram = 65536 bytes.
+set(CY_ROM_SIZE 262144)
+set(CY_RAM_SIZE 65536)
+
 add_custom_command(TARGET ${FIRMWARE_TARGET} POST_BUILD
     COMMAND ${CMAKE_OBJCOPY} -O ihex ${CY_PSEUDO_SECTION_STRIP} $<TARGET_FILE:${FIRMWARE_TARGET}> ${PROJECT_NAME}.hex
     COMMAND ${CMAKE_OBJCOPY} -O binary ${CY_PSEUDO_SECTION_STRIP} $<TARGET_FILE:${FIRMWARE_TARGET}> ${PROJECT_NAME}.bin
@@ -118,5 +123,11 @@ add_custom_command(TARGET ${FIRMWARE_TARGET} POST_BUILD
     # error, while still getting full source-level debugging.
     COMMAND ${CMAKE_OBJCOPY} -O elf32-littlearm ${CY_PSEUDO_SECTION_STRIP} $<TARGET_FILE:${FIRMWARE_TARGET}> ${PROJECT_NAME}.flash.elf
     COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${FIRMWARE_TARGET}>
+    COMMAND ${CMAKE_COMMAND}
+        -DELF_FILE=$<TARGET_FILE:${FIRMWARE_TARGET}>
+        -DCMAKE_SIZE=${CMAKE_SIZE}
+        -DCY_ROM_SIZE=${CY_ROM_SIZE}
+        -DCY_RAM_SIZE=${CY_RAM_SIZE}
+        -P ${CMAKE_SOURCE_DIR}/cmake/ReportMemoryUsage.cmake
     COMMENT "Generating .hex/.bin/.flash.elf and size report for ${FIRMWARE_TARGET}"
 )
