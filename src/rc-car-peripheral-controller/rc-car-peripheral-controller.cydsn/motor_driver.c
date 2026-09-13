@@ -36,10 +36,16 @@ void MotorCtrlInit(void)
 {
     PWM_Motor_Start();
     PWM_Motor_WriteCompare(0);
-    
     vLoggingPrintf(DEBUG_INFO, LOG_MOTOR, "app: MotorCtrlInit | Motor initialized\r\n");
 }
 
+void MotorCtrlStop()
+{
+    PWM_Motor_WriteCompare(0);
+    PWM_Motor_Stop();
+    uint8 staticBits = (pwm_out_DR & (uint8)(~pwm_out_MASK));
+    pwm_out_DR = staticBits | ((uint8)(0 << pwm_out_SHIFT) & pwm_out_MASK);
+}
 
 /**
  * @brief Sets the PID parameters for the motor controller.

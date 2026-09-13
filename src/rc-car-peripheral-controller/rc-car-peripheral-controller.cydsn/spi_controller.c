@@ -47,6 +47,7 @@ volatile static uint8_t rxBuffer[sizeof(spiTransactionStruct)    ] = { 0 };
 volatile static uint8_t txBuffer[sizeof(spiTransactionStruct) + 1] = { 0 };
 volatile static uint8_t rxStatus;
 volatile static uint8_t txStatus;
+volatile static uint8_t firstTimeConnectionEstablished = pdFALSE;
 
 volatile static uint8_t bufferIndexRx = 0;
 volatile static uint8_t bufferIndexTx = 0;
@@ -102,6 +103,7 @@ CY_ISR(end_of_message_handler)
             {
                 tx->data.u32 = val.data.u32;    
                 tx->ack = TRUE;
+                firstTimeConnectionEstablished = pdTRUE;
                 connectionTimer = 0;      // Reset the counter
             }
             else
@@ -286,16 +288,24 @@ static void vConnectionMonitorTask(void* pvParameters)
 {
     (void) pvParameters;
     uint8 ledState = pdFALSE;
+    BaseType_t motorDown = pdFALSE;
 
     for(;;)
     {
         if (connectionTimer == SPI_CONNECTION_TIMEOUT)
         {
             ledState = 0;
+
+            if (!motorDown && firstTimeConnectionEstablished)
+            {
+                RcDown();
+                motorDown = TRUE;
+            }
         }
         else
         {
-            ledState = ~ledState;
+            motorDown = pdFALSE;
+            ledState  = ~ledState;
             connectionTimer ++;
         }
 

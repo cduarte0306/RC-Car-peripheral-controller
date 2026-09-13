@@ -31,6 +31,7 @@ enum
     
 
 void MotorCtrlInit(void);
+void MotorCtrlStop(void);
 void MotorCtrlSetState(uint8_t state_);
 uint8 MotorCtrlsetSpeedSetPoint(uint32_t speedSetPoint_);
 uint8 MotorCtrlSetPid(pid_t* pid_);

@@ -71,8 +71,7 @@ typedef struct
     uint8 regType;
     val_type_t data;
 } regMapType;
-    
-    
+
 uint8_t RCInit(void);
 void RcProcess(void);
 void RcReadSpeedThread( void );

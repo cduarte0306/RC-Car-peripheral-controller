@@ -233,14 +233,6 @@ uint8_t RCInit(void)
 void RcProcess(void)
 {
     FSM_Poll(&FsmHandle, NULL);
-    // readTelemetry();
-    
-    // // Process the values in the registers
-    // MotorCtrlSetOnOffState(regMap[REG_MOTOR_ONOFF_STATE].data.u8);
-    // MotorCtrlsetSpeedSetPoint(regMap[REG_SPEED_SETPOINT].data.u32);
-    // MotorCtrlSetState(regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32);
-    
-    // MotorCtrlProcess(regMap[REG_SPEED].data.u32);
 }
 
 /**
@@ -305,6 +297,20 @@ uint8_t wrtReg(uint8_t reg, regMapType* val)
         return RET_FAIL;        
     }
 
+    switch(reg)
+    {
+        case REG_SET_MOTOR_CTRL_STATUS:
+            if (val->data.u8)
+            {
+                RcUp();   
+            }
+            else
+            {
+                RcDown();
+            }
+            break;
+        default: break;
+    }
     regMap[reg].data.u32 = (*val).data.u32;
     return RET_PASS;
 }
@@ -344,7 +350,7 @@ static void readTelemetry(void)
     {
         sensorHealth.imuStatus = TRUE;
     }
-    
+
     sensorHealth.sensorFStatus = (sensorHealth.FSensorWdog ++ > 1000) ? (FALSE) : (TRUE);
     sensorHealth.sensorLStatus = (sensorHealth.LSensorWdog ++ > 1000) ? (FALSE) : (TRUE);
     sensorHealth.sensorRStatus = (sensorHealth.RSensorWdog ++ > 1000) ? (FALSE) : (TRUE);
@@ -546,7 +552,6 @@ static void RcFsmInitHndl(void* arg)
 
 static void RcFsmInitRcHndl(void* arg)
 {
-
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing motor\r\n");
     CHECK(FSM_Step(&FsmHandle, RcFsmRunning) != FALSE);
 }
@@ -559,6 +564,7 @@ static void RcFsmReWindHndl(void* arg)
 
 static void RcFsmStopHndl(void* arg)
 {
+    
 }
 
 static void RcFsmIdleHndl(void* arg)
