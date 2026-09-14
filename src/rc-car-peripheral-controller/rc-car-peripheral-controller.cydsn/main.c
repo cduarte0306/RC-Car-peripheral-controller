@@ -48,11 +48,10 @@ int main(void)
     CyRamVectors[11] = (cyisraddress) vPortSVCHandler;
     CyRamVectors[14] = (cyisraddress) xPortPendSVHandler;
     CyRamVectors[15] = (cyisraddress) xPortSysTickHandler;
-    
+
     CyGlobalIntEnable; /* Enable global interrupts. */
-    
+
     UART_Debug_Start();
-    
     vLoggingPrintf(DEBUG_INFO, LOG_PSOC, " ===============================\r\n\r\n");
 
     ret = xTaskCreate(

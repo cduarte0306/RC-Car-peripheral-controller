@@ -47,6 +47,7 @@ volatile static uint8_t rxBuffer[sizeof(spiTransactionStruct)    ] = { 0 };
 volatile static uint8_t txBuffer[sizeof(spiTransactionStruct) + 1] = { 0 };
 volatile static uint8_t rxStatus;
 volatile static uint8_t txStatus;
+volatile static uint8_t firstTimeConnectionEstablished = pdFALSE;
 
 volatile static uint8_t bufferIndexRx = 0;
 volatile static uint8_t bufferIndexTx = 0;
@@ -61,7 +62,7 @@ uint8_t retRegStatus;
 static uint8_t configRxDMA(void);
 
 
-static void vLEDMonitorTask(void *pvParameters);
+static void vConnectionMonitorTask(void *pvParameters);
 
 
 CY_ISR(txHandler)
@@ -102,6 +103,7 @@ CY_ISR(end_of_message_handler)
             {
                 tx->data.u32 = val.data.u32;    
                 tx->ack = TRUE;
+                firstTimeConnectionEstablished = pdTRUE;
                 connectionTimer = 0;      // Reset the counter
             }
             else
@@ -115,18 +117,19 @@ CY_ISR(end_of_message_handler)
         }
         case READ_TRANSACTION:
             tx->data.u32 = READ_TRANSACTION;
-            tx->reg= 0;
+            tx->reg = 0;
             tx->data.u32 = 0;
             tx->ack = FALSE;
             break;
         case WRITE_REG_TRANSACTION:
-            val.data.u32 = tx->data.u32;
-            ret = wrtReg(tx->reg, &val);
+            val.data.u32 = rx->data.u32;
+            ret = wrtReg(rx->reg, &val);
             if (!ret)
             {
                 tx->ack = FALSE;
             }
 
+            tx->reg = rx->reg;
             tx->data.u32 = 0;
             tx->ack = TRUE;
             break;
@@ -188,7 +191,7 @@ uint8_t SPI_controller_start(void)
     
     /* Create a simple task */
     ret = xTaskCreate(
-        vLEDMonitorTask,               /* Task function */
+        vConnectionMonitorTask,               /* Task function */
         "led-monitor",                   /* Task name (for debugging) */
         configMINIMAL_STACK_SIZE,  /* Stack size */
         NULL,                      /* Task input parameter */
@@ -282,26 +285,38 @@ static uint8_t configRxDMA(void)
 
 
 /* Simple task to blink an LED */
-static void vLEDMonitorTask(void* pvParameters)
+static void vConnectionMonitorTask(void* pvParameters)
 {
     (void) pvParameters;
     uint8 ledState = pdFALSE;
-
+    uint8_t motorState = 0;
     for(;;)
     {
         if (connectionTimer == SPI_CONNECTION_TIMEOUT)
         {
             ledState = 0;
+            if (motorState < 3)
+            {
+                RcStopMotor();
+                motorState = 3;
+            }
         }
         else
         {
-            ledState = ~ledState;
+            if (motorState == 0)
+            {
+                motorState = 1;
+            }
+            else
+            {
+                motorState = 2;    
+            }
+            ledState  = ~ledState;
             connectionTimer ++;
         }
 
         uint8 staticBits = (LED_DR & (uint8)(~LED_MASK));
         LED_DR = staticBits | ((uint8)(ledState << LED_SHIFT) & LED_MASK);
-        
         vTaskDelay(500);
     }
 }

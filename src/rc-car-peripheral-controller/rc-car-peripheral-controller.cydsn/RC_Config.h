@@ -97,6 +97,12 @@
         #else
             #error CONFIG_INCLUDE_TIMESTAMP enabled but xGetTimestamp() is unavailable because CY_STATUS_REG_TREG[0:3]_H is not defined.
     #endif
+
+    // #ifdef CHECK_CONDITION
+    //     #undef CHECK_CONDITION
+    // #endif
+
+    // #define CHECK_CONDITION(x) vPrintf("")
 #endif
 
 #endif  /* LP_UTIL_CONFIG_H */

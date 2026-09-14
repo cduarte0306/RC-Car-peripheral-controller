@@ -184,6 +184,10 @@
     #define ARR_LEN(arr)         (sizeof(arr) / sizeof(arr[0]))
 #endif
 
+#ifndef CHECK
+    #define CHECK(condition)     CYASSERT(condition)
+#endif
+
 #ifndef FALSE
     #define FALSE     0
 #endif

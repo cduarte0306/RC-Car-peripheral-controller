@@ -36,10 +36,16 @@ void MotorCtrlInit(void)
 {
     PWM_Motor_Start();
     PWM_Motor_WriteCompare(0);
-    
     vLoggingPrintf(DEBUG_INFO, LOG_MOTOR, "app: MotorCtrlInit | Motor initialized\r\n");
 }
 
+void MotorCtrlStop()
+{
+    PWM_Motor_WriteCompare(0);
+    PWM_Motor_Stop();
+    uint8 staticBits = (pwm_out_DR & (uint8)(~pwm_out_MASK));
+    pwm_out_DR = staticBits | ((uint8)(0 << pwm_out_SHIFT) & pwm_out_MASK);
+}
 
 /**
  * @brief Sets the PID parameters for the motor controller.
@@ -67,7 +73,7 @@ uint8 MotorCtrlSetPid(pid_t* pid_)
  * 
  * @param speed Speed of the motor to be controlled.
  */
-void MotrorCtrlProcess(uint32_t speed)
+void MotorCtrlProcess(uint32_t speed)
 {
     doCruiseControl(speed);
 
@@ -97,7 +103,6 @@ void MotorCtrlSetState(uint8_t state_)
     {
         return;
     }
-    
     state = state_;
     motor_sel_Control = state;
     vLoggingPrintf(DEBUG_INFO, LOG_MOTOR, "app: MotorCtrlSetState | Configured motor state to %u\r\n", state);
@@ -149,6 +154,7 @@ uint8 MotorCtrlSetOnOffState(uint8_t onOffState)
         vLoggingPrintf(DEBUG_INFO, LOG_MOTOR, "app: MotorCtrlSetOnOffState | Motor stopped\r\n");
     }
     
+    motor_on_off_state = onOffState;
     return RET_PASS;
 }
 

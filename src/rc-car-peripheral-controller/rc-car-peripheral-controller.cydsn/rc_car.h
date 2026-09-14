@@ -71,15 +71,14 @@ typedef struct
     uint8 regType;
     val_type_t data;
 } regMapType;
-    
-    
+
 uint8_t RCInit(void);
 void RcProcess(void);
 void RcReadSpeedThread( void );
+void RcStopMotor(void);
 regMapType* getRegRef(void);
 uint8_t rdReg(uint8_t reg, regMapType* val);
 uint8_t wrtReg(uint8_t reg, regMapType* val);
-
     
 #endif
 
