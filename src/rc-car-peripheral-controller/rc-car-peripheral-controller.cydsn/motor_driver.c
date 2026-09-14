@@ -103,7 +103,6 @@ void MotorCtrlSetState(uint8_t state_)
     {
         return;
     }
-    
     state = state_;
     motor_sel_Control = state;
     vLoggingPrintf(DEBUG_INFO, LOG_MOTOR, "app: MotorCtrlSetState | Configured motor state to %u\r\n", state);
@@ -155,6 +154,7 @@ uint8 MotorCtrlSetOnOffState(uint8_t onOffState)
         vLoggingPrintf(DEBUG_INFO, LOG_MOTOR, "app: MotorCtrlSetOnOffState | Motor stopped\r\n");
     }
     
+    motor_on_off_state = onOffState;
     return RET_PASS;
 }
 

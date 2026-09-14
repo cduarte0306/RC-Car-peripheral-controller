@@ -16,11 +16,9 @@
 #include "motor_driver.h"
 #include "vers.h"
 #include "imu-driver.h"
-
-#include "fsm.h"
-#include <project.h>
-
 #include "app_utils.h"
+
+#include <project.h>
 
 #define RD_SPEED_DATA   (speed_msb_Status << 8U) | ( speed_lsb_Status )
 #define SEL_MAX         (3U)
@@ -31,111 +29,42 @@ static void readTelemetry(void);
 static uint8_t initIMU(void);
 static uint8_t readIMU(void);
 
-static void RcFsmInitHndl   (void* arg);
-static void RcFsmInitRcHndl (void* arg);
-static void RcFsmStopHndl   (void* arg);
-static void RcFsmIdleHndl   (void* arg);
-static void RcFsmRunningHndl(void* arg);
-static void RcFsmReWindHndl (void* arg);
+static uint8_t RcFsmInitHndl   (void* arg);
+static uint8_t RcFsmInitRcHndl (void* arg);
+static uint8_t RcFsmStopHndl   (void* arg);
+static uint8_t RcFsmIdleHndl   (void* arg);
+static uint8_t RcFsmRunningHndl(void* arg);
+static uint8_t RcFsmReWindHndl (void* arg);
 
 // FSM states
 enum
 {
     RcFsmInit,
+    RcFsmRewindInit,
     RcFsmInitRc,
     RcFsmStop,
     RcFsmIdle,
     RcFsmRunning,
-    RcFsmRewindInit,
 };
 
+// IMU operations return codes
 enum
 {
-    RcDoInit,
-    RcDoInitRc,
-    RcDoStop,
-    RcDoIdle,
-    RcDoRunning,
-    RcDoRewind,
+    ImuPass,
+    ImuFail,
+    ImuIntNotReady
 };
 
-// Transitions definitions
-static tTransitions transitionsAtInit[] =
-{
-    { RcFsmIdle,       RcDoIdle,    NULL },
-    { RcFsmRunning,    RcDoRunning, NULL },
-    { RcFsmStop,       RcDoStop,    NULL },
-    { RcFsmRewindInit, RcDoRewind,  NULL },
-};
+typedef uint8_t (*fsmCallback_t)(void*);
 
-static tTransitions transitionsAtInitRc[] =
+typedef struct
 {
-    { RcFsmIdle,       RcDoIdle,    NULL },
-    { RcFsmRunning,    RcDoRunning, NULL },
-    { RcFsmStop,       RcDoStop,    NULL },
-};
+    fsmCallback_t callback;
+} tStateMachine;
 
-static tTransitions transitionsAtStop[] =
+static tStateMachine fsmPool[] =
 {
-    { RcFsmInitRc,  RcDoInitRc,  NULL },
-    { RcFsmRunning, RcDoRunning, NULL },
-    { RcFsmStop,    RcDoStop,    NULL },
-};
-
-static tTransitions transitionsAtIdle[] =
-{
-    { RcFsmStop,    RcDoStop,    NULL },
-    { RcFsmRunning, RcDoRunning, NULL },
-    { RcFsmIdle,    RcDoIdle,    NULL },
-};
-
-static tTransitions transitionsAtRunning[] =
-{
-    { RcFsmStop,    RcDoStop,    NULL },
-    { RcFsmIdle,    RcDoIdle,    NULL },
-    { RcFsmRunning, RcDoRunning, NULL },
-};
-
-static tTransitions transitionsAtRewind[] =
-{
-    { RcFsmInit,    RcDoInit,    NULL },
-    { RcFsmIdle,    RcDoIdle,    NULL }
-};
-
-static tFsm fsmConfig[] =
-{
-    {
-        RcFsmInit,
-        { RcFsmInit, ARR_LEN(transitionsAtInit), RcFsmInitHndl, transitionsAtInit }
-    },
-    {
-        RcFsmInitRc,
-        { RcFsmInitRc, ARR_LEN(transitionsAtInitRc), RcFsmInitRcHndl, transitionsAtInitRc }
-    },
-    {
-        RcFsmStop,
-        { RcFsmStop, ARR_LEN(transitionsAtStop), RcFsmStopHndl, transitionsAtStop }
-    },
-    {
-        RcFsmIdle,
-        { RcFsmIdle, ARR_LEN(transitionsAtIdle), RcFsmIdleHndl, transitionsAtIdle }
-    },
-    {
-        RcFsmRunning,
-        { RcFsmRunning, ARR_LEN(transitionsAtRunning), RcFsmRunningHndl, transitionsAtRunning }
-    },
-    {
-        RcFsmRewindInit,
-        { RcFsmRewindInit, ARR_LEN(transitionsAtRewind), RcFsmReWindHndl, transitionsAtRewind }
-    },
-};
-
-static tFsmHandle FsmHandle =
-{
-    .base     = NULL,
-    .stateHdl = NULL,
-    .numSteps = 0,
-    .started  = FALSE
+    {RcFsmInitHndl}, {RcFsmReWindHndl}, {RcFsmInitRcHndl}, {RcFsmStopHndl}, {RcFsmIdleHndl}, {RcFsmRunningHndl}
 };
 
 static uint32_t lastSpeed = 0;
@@ -152,14 +81,6 @@ static volatile uint8_t imuDataReady = FALSE;
 
 static volatile uint8_t sensorSel = 0;
 
-// IMU operations return codes
-enum
-{
-    ImuPass,
-    ImuFail,
-    ImuIntNotReady
-};
-
 static struct
 {
     uint8_t sensorFStatus;
@@ -172,6 +93,18 @@ static struct
     uint32_t LSensorWdog;
     uint32_t RSensorWdog;
 } sensorHealth = {FALSE, FALSE, FALSE, TRUE, FALSE, 0, 0, 0};
+
+static struct
+{
+    uint8_t fsmState;     /**< Current state machine state */
+    int8_t fsmSetState;   /**< To be set by an external controller */
+    const uint8_t numStates;    /**< Number of states */
+} fsmInfo =
+{
+    .fsmState  = 0,
+    .fsmSetState = -1,
+    .numStates = ARR_LEN(fsmPool),
+};
 
 // Denoise variables
 static float sensorLeft  = 0;
@@ -220,8 +153,6 @@ CY_ISR(enc_error_handler)
 uint8_t RCInit(void)
 {
     // Init FSM
-    uint8_t ret = FSM_Init(&FsmHandle, fsmConfig, RcFsmInit, ARR_LEN(fsmConfig));
-    CHECK(ret != pdFAIL);
     lastTime = xGetTimestamp();
     return RET_PASS;
 }
@@ -232,7 +163,23 @@ uint8_t RCInit(void)
  */
 void RcProcess(void)
 {
-    FSM_Poll(&FsmHandle, NULL);
+    CHECK(fsmInfo.fsmState < fsmInfo.numStates);
+    fsmCallback_t cb = fsmPool[fsmInfo.fsmState].callback;
+    CHECK(cb != NULL);
+    fsmInfo.fsmState = cb(NULL);
+    if (fsmInfo.fsmSetState > 0)
+    {
+        if (fsmInfo.fsmSetState > (int8)ARR_LEN(fsmPool) || (fsmInfo.fsmSetState < 0))
+        {
+            vLoggingPrintf(DEBUG_INFO, "Invalid FSM state received: %d\r\n", fsmInfo.fsmSetState);
+        }
+        else
+        {
+            fsmInfo.fsmState = (int)fsmInfo.fsmSetState;
+            vLoggingPrintf(DEBUG_INFO, "Configuring FSM to state: %d\r\n", fsmInfo.fsmState);
+        }
+        fsmInfo.fsmSetState = -1;
+    }
 }
 
 /**
@@ -252,24 +199,6 @@ void RcReadSpeedThread(void)
 }
 
 /**
- * @brief Set FSM to wind down all motor operations
- * 
- */
-void RcDown(void)
-{
-    CHECK(FSM_Step(&FsmHandle, RcDoStop));
-}
-
-/**
- * @brief Set FSM to bring up all motor operations
- * 
- */
-void RcUp(void)
-{
-    CHECK(FSM_Step(&FsmHandle, RcDoInitRc));
-}
-
-/**
  * @brief Read from the register map
  * 
  * @return regMapType* Pointer to the register map
@@ -283,6 +212,11 @@ uint8_t rdReg(uint8_t reg, regMapType* val)
     
     (*val).data.u32 = regMap[reg].data.u32;
     return RET_PASS;
+}
+
+void RcStopMotor(void)
+{
+    fsmInfo.fsmSetState = RcFsmStop;
 }
 
 /**
@@ -302,11 +236,11 @@ uint8_t wrtReg(uint8_t reg, regMapType* val)
         case REG_SET_MOTOR_CTRL_STATUS:
             if (val->data.u8)
             {
-                RcUp();   
+                fsmInfo.fsmSetState = RcFsmInitRc;   
             }
             else
             {
-                RcDown();
+                fsmInfo.fsmSetState = RcFsmStop;  
             }
             break;
         default: break;
@@ -502,7 +436,7 @@ static uint8_t initIMU(void)
     return RET_PASS;
 }
 
-static void RcFsmInitHndl(void* arg)
+static uint8 RcFsmInitHndl(void* arg)
 {
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing RC car\r\n");
 
@@ -541,37 +475,43 @@ static void RcFsmInitHndl(void* arg)
     isr_enc_error_StartEx(enc_error_handler);
     if (initIMU() != RET_PASS)
     {
-        FSM_Step(&FsmHandle, RcDoRewind);  // Lets enter the rewind handler
-        return;
+        return RcFsmRewindInit;
     }
 
     imu_interrupt_StartEx(imu_handler);
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | RC Car initialized\r\n");
-    CHECK(FSM_Step(&FsmHandle, RcFsmRunning) != FALSE);
+    return RcFsmStop;  // Upon initialization, we move to idle state until commanded otherwise
 }
 
-static void RcFsmInitRcHndl(void* arg)
+static uint8 RcFsmInitRcHndl(void* arg)
 {
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing motor\r\n");
-    CHECK(FSM_Step(&FsmHandle, RcFsmRunning) != FALSE);
+    MotorCtrlInit();
+    regMap[REG_MOTOR_ONOFF_STATE].data.u8 = pdTRUE;
+    return RcFsmRunning;  // Move to running
 }
 
-static void RcFsmReWindHndl(void* arg)
+static uint8 RcFsmReWindHndl(void* arg)
 {
     vTaskDelay(pdMS_TO_TICKS(1000));  // Wait 1 second before retrying
-    CHECK(FSM_Step(&FsmHandle, RcDoInit));
+    return RcFsmInit;  // Re-try to initialize sensor
 }
 
-static void RcFsmStopHndl(void* arg)
+static uint8 RcFsmStopHndl(void* arg)
 {
-    
+    MotorCtrlStop();
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "Stopping motor\r\n");
+    regMap[REG_MOTOR_ONOFF_STATE].data.u8 = pdFALSE;
+    return RcFsmIdle;
 }
 
-static void RcFsmIdleHndl(void* arg)
+static uint8 RcFsmIdleHndl(void* arg)
 {
+    // We do nothing. Device is idle
+    return RcFsmIdle;
 }
 
-static void RcFsmRunningHndl(void* arg)
+static uint8 RcFsmRunningHndl(void* arg)
 {
     readTelemetry();
     // Process the values in the registers
@@ -579,6 +519,7 @@ static void RcFsmRunningHndl(void* arg)
     MotorCtrlsetSpeedSetPoint(regMap[REG_SPEED_SETPOINT].data.u32);
     MotorCtrlSetState(regMap[REG_SET_MOTOR_CTRL_STATUS].data.u32);
     MotorCtrlProcess(regMap[REG_SPEED].data.u32);
+    return RcFsmRunning;
 }
 
 /* [] END OF FILE */

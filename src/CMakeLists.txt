@@ -25,7 +25,6 @@ set(APP_SOURCES
     ${CYDSN_DIR}/app_cli.c
     ${CYDSN_DIR}/vers.c
     ${CYDSN_DIR}/exceptions.c
-    ${CYDSN_DIR}/fsm.c
 )
 
 # --- FreeRTOS kernel ---

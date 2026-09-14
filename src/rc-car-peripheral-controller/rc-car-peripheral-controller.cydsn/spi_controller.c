@@ -117,18 +117,19 @@ CY_ISR(end_of_message_handler)
         }
         case READ_TRANSACTION:
             tx->data.u32 = READ_TRANSACTION;
-            tx->reg= 0;
+            tx->reg = 0;
             tx->data.u32 = 0;
             tx->ack = FALSE;
             break;
         case WRITE_REG_TRANSACTION:
-            val.data.u32 = tx->data.u32;
-            ret = wrtReg(tx->reg, &val);
+            val.data.u32 = rx->data.u32;
+            ret = wrtReg(rx->reg, &val);
             if (!ret)
             {
                 tx->ack = FALSE;
             }
 
+            tx->reg = rx->reg;
             tx->data.u32 = 0;
             tx->ack = TRUE;
             break;
@@ -288,23 +289,28 @@ static void vConnectionMonitorTask(void* pvParameters)
 {
     (void) pvParameters;
     uint8 ledState = pdFALSE;
-    BaseType_t motorDown = pdFALSE;
-
+    uint8_t motorState = 0;
     for(;;)
     {
         if (connectionTimer == SPI_CONNECTION_TIMEOUT)
         {
             ledState = 0;
-
-            if (!motorDown && firstTimeConnectionEstablished)
+            if (motorState < 3)
             {
-                RcDown();
-                motorDown = TRUE;
+                RcStopMotor();
+                motorState = 3;
             }
         }
         else
         {
-            motorDown = pdFALSE;
+            if (motorState == 0)
+            {
+                motorState = 1;
+            }
+            else
+            {
+                motorState = 2;    
+            }
             ledState  = ~ledState;
             connectionTimer ++;
         }
