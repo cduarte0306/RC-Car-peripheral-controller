@@ -171,12 +171,12 @@ void RcProcess(void)
     {
         if (fsmInfo.fsmSetState > (int8)ARR_LEN(fsmPool) || (fsmInfo.fsmSetState < 0))
         {
-            vLoggingPrintf(DEBUG_INFO, "Invalid FSM state received: %d\r\n", fsmInfo.fsmSetState);
+            vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "Invalid FSM state received: %d\r\n", fsmInfo.fsmSetState);
         }
         else
         {
             fsmInfo.fsmState = (int)fsmInfo.fsmSetState;
-            vLoggingPrintf(DEBUG_INFO, "Configuring FSM to state: %d\r\n", fsmInfo.fsmState);
+            vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "Configuring FSM to state: %d\r\n", fsmInfo.fsmState);
         }
         fsmInfo.fsmSetState = -1;
     }
@@ -216,6 +216,23 @@ uint8_t rdReg(uint8_t reg, regMapType* val)
 
 void RcStopMotor(void)
 {
+    MotorCtrlStop();
+
+    // Check the car has come to a full stop
+    uint32_t* motorSpeed = regMap[REG_SPEED].data.u32;
+    while (motorSpeed > 0)
+    {
+        uint8_t dir = (dir_sel_PS & dir_sel_MASK) >> dir_sel_SHIFT;
+        if (dir)  // If fwd
+        {
+            
+        }
+        else  // If reverse
+        {
+            
+        }
+    }
+
     fsmInfo.fsmSetState = RcFsmStop;
 }
 
@@ -438,6 +455,7 @@ static uint8_t initIMU(void)
 
 static uint8 RcFsmInitHndl(void* arg)
 {
+    (void) arg;
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing RC car\r\n");
 
     for (uint8 idx = REG_NOOP; idx < REG_RO_END; idx++)
@@ -485,6 +503,7 @@ static uint8 RcFsmInitHndl(void* arg)
 
 static uint8 RcFsmInitRcHndl(void* arg)
 {
+    (void) arg;
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | Initializing motor\r\n");
     MotorCtrlInit();
     regMap[REG_MOTOR_ONOFF_STATE].data.u8 = pdTRUE;
@@ -493,12 +512,14 @@ static uint8 RcFsmInitRcHndl(void* arg)
 
 static uint8 RcFsmReWindHndl(void* arg)
 {
+    (void) arg;
     vTaskDelay(pdMS_TO_TICKS(1000));  // Wait 1 second before retrying
     return RcFsmInit;  // Re-try to initialize sensor
 }
 
 static uint8 RcFsmStopHndl(void* arg)
 {
+    (void) arg;
     MotorCtrlStop();
     vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "Stopping motor\r\n");
     regMap[REG_MOTOR_ONOFF_STATE].data.u8 = pdFALSE;
@@ -508,11 +529,13 @@ static uint8 RcFsmStopHndl(void* arg)
 static uint8 RcFsmIdleHndl(void* arg)
 {
     // We do nothing. Device is idle
+    (void) arg;
     return RcFsmIdle;
 }
 
 static uint8 RcFsmRunningHndl(void* arg)
 {
+    (void) arg;
     readTelemetry();
     // Process the values in the registers
     MotorCtrlSetOnOffState(regMap[REG_MOTOR_ONOFF_STATE].data.u8);
