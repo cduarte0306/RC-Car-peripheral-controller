@@ -3,11 +3,12 @@
 <!--This file is machine generated and read. It is not intended to be edited by hand.-->
 <!--Due to this, there is no schema for this file.-->
 <CyGuid_2867d519-54d2-4c01-9830-c51cb08bc3dd type_name="CyDesigner.Common.ProjMgmt.Model.CyPrjMgmtWorkspaceSerialize" version="5" xml_contents_version="3" name="rc-car-peripheral-controller" persistent="rc-car-peripheral-controller.cywrk" platform="NOT_USED">
-<current_project name=".\rc-car-peripheral-controller.cydsn\rc-car-peripheral-controller.cyprj" />
+<current_project name=".\rc-car-peripheral-bootloader.cydsn\rc-car-peripheral-bootloader.cyprj" />
 <wrkspc_folders />
 <files />
 <projects>
 <v>.\rc-car-peripheral-controller.cydsn\rc-car-peripheral-controller.cyprj</v>
+<v>.\rc-car-peripheral-bootloader.cydsn\rc-car-peripheral-bootloader.cyprj</v>
 </projects>
 <workspace_id v="cc058d97-9d66-466c-875e-06334aaf8031" />
 <WriteAppVersionLastSavedWith v="4.4.0.80" />
