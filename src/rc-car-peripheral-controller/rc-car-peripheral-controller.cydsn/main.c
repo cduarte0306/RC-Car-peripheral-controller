@@ -139,7 +139,7 @@ void vCommsTask( void* pvParameters )
     
     for(;;)
     {        
-        vTaskDelay( 1 );
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
@@ -164,7 +164,7 @@ void vRCTask( void* pvParameters )
     for(;;)
     {
         RcProcess();
-        vTaskDelay( 1 );
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
@@ -194,7 +194,7 @@ void vCliTask( void* pvParameters )
     for(;;)
     {
         APP_CLI_update();
-        vTaskDelay(1);
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 

@@ -216,23 +216,28 @@ uint8_t rdReg(uint8_t reg, regMapType* val)
 
 void RcStopMotor(void)
 {
-    MotorCtrlStop();
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: RcStopMotor | Stopping motor\n", __FUNCTION__);
+    MotorCtrlStop();  // Command motor PWM to stop
 
     // Check the car has come to a full stop
     uint32_t* motorSpeed = regMap[REG_SPEED].data.u32;
-    while (motorSpeed > 0)
+    uint8 staticBits = (pwm_out_DR & (uint8)(~pwm_out_MASK));
+    pwm_out_DR = staticBits | ((uint8)(0 << pwm_out_SHIFT) & pwm_out_MASK);
+    while (motorSpeed > 2)
     {
         uint8_t dir = (dir_sel_PS & dir_sel_MASK) >> dir_sel_SHIFT;
-        if (dir)  // If fwd
-        {
-            
-        }
-        else  // If reverse
-        {
-            
-        }
+        sim_sel_Control = !dir;
+
+        // Bit bang the pwm in the opossite 
+        staticBits = (pwm_out_DR & (uint8)(~pwm_out_MASK));
+        pwm_out_DR = staticBits | ((uint8)(1 << pwm_out_SHIFT) & pwm_out_MASK);
+        vTaskDelay(pdMS_TO_TICKS(1));
+        staticBits = (pwm_out_DR & (uint8)(~pwm_out_MASK));
+        pwm_out_DR = staticBits | ((uint8)(0 << pwm_out_SHIFT) & pwm_out_MASK);
+        vTaskDelay(pdMS_TO_TICKS(9));
     }
 
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: RcStopMotor | Rc Motor Stopped...\r\n", __FUNCTION__);
     fsmInfo.fsmSetState = RcFsmStop;
 }
 
