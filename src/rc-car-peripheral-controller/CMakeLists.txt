@@ -1,7 +1,8 @@
 # --- Paths into the PSoC Creator workspace ---
-set(CYDSN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rc-car-peripheral-controller/rc-car-peripheral-controller.cydsn)
+set(CYDSN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rc-car-peripheral-controller.cydsn)
 set(GENERATED_DIR ${CYDSN_DIR}/Generated_Source/PSoC5)
-set(LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libraries)
+set(LIB_DIR ${PROJECT_ROOT}/src/libraries)
+set(COMMON_DIR ${PROJECT_ROOT}/src/common)
 set(FREERTOS_SOURCE_DIR ${LIB_DIR}/FreeRTOS/FreeRTOS/Source)
 
 if(NOT EXISTS ${FREERTOS_SOURCE_DIR}/tasks.c)
@@ -20,11 +21,11 @@ set(APP_SOURCES
     ${CYDSN_DIR}/motor_driver.c
     ${CYDSN_DIR}/spi_controller.c
     ${CYDSN_DIR}/imu-driver.c
-    ${CYDSN_DIR}/logging.c
-    ${CYDSN_DIR}/app_utils.c
     ${CYDSN_DIR}/app_cli.c
     ${CYDSN_DIR}/vers.c
     ${CYDSN_DIR}/exceptions.c
+    ${COMMON_DIR}/logging.c
+    ${COMMON_DIR}/app_utils.c
 )
 
 # --- FreeRTOS kernel ---
@@ -61,6 +62,7 @@ target_include_directories(${FIRMWARE_TARGET} PRIVATE
     ${FREERTOS_SOURCE_DIR}/include
     ${FREERTOS_SOURCE_DIR}/portable/GCC/ARM_CM3
     ${FREERTOS_SOURCE_DIR}/portable/MemMang
+    ${COMMON_DIR}
 )
 
 # Mirrors the "Debug@CortexM3" build configuration in rc-car-peripheral-controller.cyprj

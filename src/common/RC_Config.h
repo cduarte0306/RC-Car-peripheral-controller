@@ -87,7 +87,7 @@
         #define _UART_TX_FIFO_CLR        UART_Debug_TX_FIFO_CLR
     #endif
     
-    #if CONFIG_INCLUDE_FREERTOS == 1u
+    #if CONFIG_INCLUDE_FREERTOS == 1u && __has_include("FreeRTOS.h")
         #define FREERTOS_INCLUDE_OK
     #endif
     

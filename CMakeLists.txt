@@ -18,4 +18,8 @@ project(rc-car-peripheral-controller C ASM)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-add_subdirectory(src)
+set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+set(COMMON_DIR ${PROJECT_ROOT}/src/common)
+
+add_subdirectory(src/rc-car-peripheral-controller)
+add_subdirectory(src/rc-car-peripheral-bootloader)

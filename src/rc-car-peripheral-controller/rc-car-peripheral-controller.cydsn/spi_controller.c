@@ -171,7 +171,6 @@ uint8_t SPI_controller_start(void)
     end_of_message_StartEx(end_of_message_handler); 
     
     SPIS_Start();
-    SPIS_Start();
     SPIS_ClearFIFO();
     SPIS_ClearRxBuffer();
     SPIS_ClearTxBuffer();
