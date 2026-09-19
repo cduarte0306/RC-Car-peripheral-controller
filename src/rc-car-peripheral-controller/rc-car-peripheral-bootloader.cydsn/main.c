@@ -27,8 +27,9 @@ int main(void)
     UART_Debug_Start();
     uint8_t major, minor, build;
     getVers(&major, &minor, &build);
-    vPrintf("RC Car Bootloader version: %d.%d.%d\r\n",
-                    major, minor, build);
+    vLoggingPrintf(DEBUG_INFO, LOG_PSOC, " ===============================\r\n\r\n");
+    vLoggingPrintf(DEBUG_INFO, LOG_PSOC,"RC Car Bootloader version: %d.%d.%d\r\n",
+            major, minor, build);
 
     // We should never reach this point
     for(;;)

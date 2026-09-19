@@ -12,7 +12,6 @@ file(GLOB GENERATED_SOURCES CONFIGURE_DEPENDS ${GENERATED_DIR}/*.c)
 # --- Application sources ---
 set(APP_SOURCES
     ${CYDSN_DIR}/main.c
-    ${CYDSN_DIR}/bootloader_spi.c
     ${CYDSN_DIR}/bootloader.c
     ${CYDSN_DIR}/vers.c
 )
