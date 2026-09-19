@@ -28,5 +28,5 @@ set(COMMON_DIR ${PROJECT_ROOT}/src/common)
 # both targets below, so the two images can never silently overlap in flash.
 set(CY_BOOTLOADER_SIZE 0x8000)
 
-add_subdirectory(src/rc-car-peripheral-controller)
-add_subdirectory(src/rc-car-peripheral-bootloader)
+add_subdirectory(src/rc-car-peripheral-controller/rc-car-peripheral-controller.cydsn)
+add_subdirectory(src/rc-car-peripheral-controller/rc-car-peripheral-bootloader.cydsn)
