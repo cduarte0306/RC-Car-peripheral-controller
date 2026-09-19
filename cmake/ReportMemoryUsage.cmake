@@ -40,3 +40,14 @@ math(EXPR RAM_PCT_FRAC "${RAM_PCT_X10} % 10")
 
 message(STATUS "Flash: ${FLASH_USED} / ${CY_ROM_SIZE} bytes (${FLASH_PCT_INT}.${FLASH_PCT_FRAC}%)")
 message(STATUS "RAM:   ${RAM_USED} / ${CY_RAM_SIZE} bytes (${RAM_PCT_INT}.${RAM_PCT_FRAC}%)")
+
+# A hard failure here, not just a warning: for the bootloader/application
+# split, CY_ROM_SIZE is each image's slice of flash (see CY_BOOTLOADER_SIZE
+# in the root CMakeLists.txt), and silently overflowing it means the two
+# images would overlap on the device.
+if(FLASH_USED GREATER CY_ROM_SIZE)
+    message(FATAL_ERROR "${ELF_FILE}: flash usage (${FLASH_USED} bytes) exceeds its ${CY_ROM_SIZE}-byte budget")
+endif()
+if(RAM_USED GREATER CY_RAM_SIZE)
+    message(FATAL_ERROR "${ELF_FILE}: RAM usage (${RAM_USED} bytes) exceeds its ${CY_RAM_SIZE}-byte budget")
+endif()

@@ -32,7 +32,10 @@ MEMORY
 }
 
 
-CY_APPL_ORIGIN      = 0;
+/* Guarded so a future -Wl,--defsym=CY_APPL_ORIGIN=... could override this;
+ * see the matching comment in the application's cm3gcc.ld. The bootloader
+ * itself always stays at 0. */
+CY_APPL_ORIGIN      = DEFINED(CY_APPL_ORIGIN) ? CY_APPL_ORIGIN : 0;
 CY_FLASH_ROW_SIZE   = 256;
 CY_ECC_ROW_SIZE     = 32;
 CY_EE_IN_BTLDR      = 0x0;

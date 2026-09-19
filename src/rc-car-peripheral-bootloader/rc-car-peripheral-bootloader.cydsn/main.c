@@ -11,6 +11,7 @@
 */
 #include "project.h"
 #include "logging.h"
+#include "vers.h"
 
 int main(void)
 {
@@ -21,9 +22,15 @@ int main(void)
     SPIS_ClearFIFO();
     SPIS_ClearRxBuffer();
     SPIS_ClearTxBuffer();
+    PWM_Start();
 
     UART_Debug_Start();
+    uint8_t major, minor, build;
+    getVers(&major, &minor, &build);
+    vPrintf("RC Car Bootloader version: %d.%d.%d\r\n",
+                    major, minor, build);
 
+    // We should never reach this point
     for(;;)
     {
         /* Place your application code here. */

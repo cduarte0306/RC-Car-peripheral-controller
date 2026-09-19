@@ -85,6 +85,8 @@ target_compile_options(${FIRMWARE_TARGET} PRIVATE
 
 set(LINKER_SCRIPT ${GENERATED_DIR}/cm3gcc.ld)
 
+# Reserves [0, CY_BOOTLOADER_SIZE) in flash for the bootloader (see root
+# CMakeLists.txt) by shifting this image's appl_start past it.
 target_link_options(${FIRMWARE_TARGET} PRIVATE
     ${CPU_FLAGS}
     -T${LINKER_SCRIPT}
@@ -93,6 +95,7 @@ target_link_options(${FIRMWARE_TARGET} PRIVATE
     -u_printf_float
     -Wl,--gc-sections
     -Wl,-Map=${PROJECT_NAME}.map
+    -Wl,--defsym=CY_APPL_ORIGIN=${CY_BOOTLOADER_SIZE}
 )
 
 set_target_properties(${FIRMWARE_TARGET} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT})
@@ -111,8 +114,9 @@ set(CY_PSEUDO_SECTION_STRIP
 )
 
 # --- Post-build: .hex/.bin + size report ---
-# From cm3gcc.ld: rom (flash) = 262144 bytes, ram = 65536 bytes.
-set(CY_ROM_SIZE 262144)
+# From cm3gcc.ld: rom (flash) = 262144 bytes, ram = 65536 bytes. The app's
+# actual budget is what's left after the bootloader's reserved region.
+math(EXPR CY_ROM_SIZE "262144 - ${CY_BOOTLOADER_SIZE}")
 set(CY_RAM_SIZE 65536)
 
 add_custom_command(TARGET ${FIRMWARE_TARGET} POST_BUILD

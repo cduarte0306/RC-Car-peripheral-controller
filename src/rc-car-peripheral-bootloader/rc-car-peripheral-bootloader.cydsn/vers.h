@@ -10,20 +10,12 @@
  * ========================================
 */
 
-#include "vers.h"
-#include <cytypes.h>
+#ifndef VERS_H
+#define VERS_H
 
-
-uint8_t major_ = 1;
-uint8_t minor_ = 3;
-uint8_t build_ = 0;
-
-
-void getVers(unsigned char* major, unsigned char* minor, unsigned char* build) {
-    *major = major_;
-    *minor = minor_;
-    *build = build_;
-}
-
+    
+void getVers(unsigned char* major, unsigned char* minor, unsigned char* build); 
+    
+#endif
 
 /* [] END OF FILE */

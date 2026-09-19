@@ -12,6 +12,9 @@ file(GLOB GENERATED_SOURCES CONFIGURE_DEPENDS ${GENERATED_DIR}/*.c)
 # --- Application sources ---
 set(APP_SOURCES
     ${CYDSN_DIR}/main.c
+    ${CYDSN_DIR}/bootloader_spi.c
+    ${CYDSN_DIR}/bootloader.c
+    ${CYDSN_DIR}/vers.c
 )
 
 set(FIRMWARE_TARGET ${BOOTLOADER_PROJECT_NAME}.elf)
@@ -36,6 +39,11 @@ target_include_directories(${FIRMWARE_TARGET} PRIVATE
 target_compile_definitions(${FIRMWARE_TARGET} PRIVATE
     DEBUG
     CY_CORE_ID=0
+    BOOTLOADER=1
+    # Where the application image starts in flash (see CY_BOOTLOADER_SIZE in
+    # the root CMakeLists.txt) - the bootloader jumps here once it decides
+    # not to stay resident.
+    APPL_START_ADDR=${CY_BOOTLOADER_SIZE}
 )
 
 set(CPU_FLAGS -mcpu=cortex-m3 -mthumb -mfloat-abi=soft)
@@ -78,8 +86,10 @@ set(CY_PSEUDO_SECTION_STRIP
 )
 
 # --- Post-build: .hex/.bin + size report ---
-# From cm3gcc.ld: rom (flash) = 262144 bytes, ram = 65536 bytes.
-set(CY_ROM_SIZE 262144)
+# The bootloader's actual budget is the reserved region at the start of
+# flash (CY_BOOTLOADER_SIZE, set in the root CMakeLists.txt) - not the full
+# 262144-byte part, which belongs to the application past CY_APPL_ORIGIN.
+set(CY_ROM_SIZE ${CY_BOOTLOADER_SIZE})
 set(CY_RAM_SIZE 65536)
 
 add_custom_command(TARGET ${FIRMWARE_TARGET} POST_BUILD

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(arm-none-eabi-gcc --version)",
+      "Bash(docker compose *)",
+      "Bash(git submodule *)"
+    ]
+  }
+}

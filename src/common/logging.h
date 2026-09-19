@@ -80,7 +80,7 @@
             #endif
         #endif
 
-        #if (CONFIG_INCLUDE_FREERTOS == 1u)
+        #if defined ( FREERTOS_INCLUDE_OK )
             void init_shared_uart(void);
             void SHARED_UART_PutString(const char *buffer);
         #else

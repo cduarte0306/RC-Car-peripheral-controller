@@ -32,7 +32,11 @@ MEMORY
 }
 
 
-CY_APPL_ORIGIN      = 0;
+/* A plain "= 0" here would silently win over -Wl,--defsym=CY_APPL_ORIGIN=...
+ * (linker script assignments always overwrite a --defsym value unless
+ * guarded like this), which is how the app is shifted past the bootloader's
+ * reserved region - see CY_BOOTLOADER_SIZE in the top-level CMakeLists.txt. */
+CY_APPL_ORIGIN      = DEFINED(CY_APPL_ORIGIN) ? CY_APPL_ORIGIN : 0;
 CY_FLASH_ROW_SIZE   = 256;
 CY_ECC_ROW_SIZE     = 32;
 CY_EE_IN_BTLDR      = 0x0;
