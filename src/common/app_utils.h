@@ -22,7 +22,7 @@
 #endif
 
 #if ( CONFIG_INCLUDE_CRC == 1u )
-    uint32 xCRC32(const uint8 data[], uint8 len);
+    uint32 xCRC32(const uint8 data[], size_t len);
 #endif
 
 #if ( CONFIG_INCLUDE_FLETCHER16 == 1u )

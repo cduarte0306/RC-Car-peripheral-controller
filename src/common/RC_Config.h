@@ -98,9 +98,7 @@
             #error CONFIG_INCLUDE_TIMESTAMP enabled but xGetTimestamp() is unavailable because CY_STATUS_REG_TREG[0:3]_H is not defined.
     #endif
 
-    // #ifdef CHECK_CONDITION
-    //     #undef CHECK_CONDITION
-    // #endif
+    #define BOOTLOADER_ENTRY_MAGIC  0xB007B007u
 
     // #define CHECK_CONDITION(x) vPrintf("")
 #endif

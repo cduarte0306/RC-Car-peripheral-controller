@@ -63,6 +63,7 @@ typedef enum
     REG_PID_P,
     REG_PID_I,
     REG_PID_D,
+    REG_ENTER_BL,
     REG_WR_END,
 } registerEnumReadWrites;
 

@@ -11,6 +11,7 @@
 */
 #include "project.h"
 #include "logging.h"
+#include "bootloader.h"
 #include "vers.h"
 
 int main(void)
@@ -30,7 +31,8 @@ int main(void)
     vLoggingPrintf(DEBUG_INFO, LOG_PSOC, " ===============================\r\n\r\n");
     vLoggingPrintf(DEBUG_INFO, LOG_PSOC,"RC Car Bootloader version: %d.%d.%d\r\n",
             major, minor, build);
-
+    Bootloader_Start();
+        
     // We should never reach this point
     for(;;)
     {

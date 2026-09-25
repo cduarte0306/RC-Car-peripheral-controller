@@ -102,7 +102,7 @@
      *
      * @return uint32 CRC-32 value for the byte sequence specified
      */
-    uint32 xCRC32(const uint8 data[], uint8 len) 
+    uint32 xCRC32(const uint8 data[], size_t len) 
     {
         /* Initial value is 0xFFFFFFFF */
     	uint32 crc32 = 0xFFFFFFFFu;

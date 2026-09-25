@@ -67,6 +67,8 @@ static tStateMachine fsmPool[] =
     {RcFsmInitHndl}, {RcFsmReWindHndl}, {RcFsmInitRcHndl}, {RcFsmStopHndl}, {RcFsmIdleHndl}, {RcFsmRunningHndl}
 };
 
+CY_NOINIT static volatile uint32_t bootEntryFlag;
+
 static uint32_t lastSpeed = 0;
 static regMapType regMap[ REG_WR_END ];
 
@@ -242,6 +244,10 @@ uint8_t wrtReg(uint8_t reg, regMapType* val)
             {
                 fsmInfo.fsmSetState = RcFsmStop;  
             }
+            break;
+        case REG_ENTER_BL:
+            bootEntryFlag = BOOTLOADER_ENTRY_MAGIC;
+            CY_LIB_RESET_CR2_REG |= CY_LIB_RESET_CR2_RESET;;
             break;
         default: break;
     }

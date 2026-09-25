@@ -64,7 +64,6 @@ static uint8_t configRxDMA(void);
 
 static void vConnectionMonitorTask(void *pvParameters);
 
-
 CY_ISR(txHandler)
 {
     // Read current TX status
@@ -88,7 +87,7 @@ CY_ISR(end_of_message_handler)
     end_of_message_ClearPending();
     regMapType val;
     uint8_t ret;
-    
+
     spiTransactionStruct *rx = (spiTransactionStruct*)rxBuffer;
     spiTransactionStruct *tx = (spiTransactionStruct*)txBuffer;
     
