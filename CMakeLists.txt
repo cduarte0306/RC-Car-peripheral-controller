@@ -22,11 +22,16 @@ set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(COMMON_DIR ${PROJECT_ROOT}/src/common)
 
 # --- Flash layout shared between the bootloader and the application ---
-# The bootloader owns [0, CY_BOOTLOADER_SIZE); the application is linked to
-# start right after it (CY_APPL_ORIGIN in its cm3gcc.ld). Must stay row-aligned
-# (CY_FLASH_ROW_SIZE = 256 in cm3gcc.ld) and is the single source of truth for
-# both targets below, so the two images can never silently overlap in flash.
-set(CY_BOOTLOADER_SIZE 0x8000)
+# The bootloader owns [0, 0x8000); [0x8000, CY_BOOTLOADER_SIZE) is a reserved
+# metadata row (APPL_METADATA in MotorBootloaderDefs.h - image length + CRC
+# for verify-before-jump, written by Bootloader_Finalize, not by the normal
+# per-row WriteRow path); the application is linked to start right after that
+# (CY_APPL_ORIGIN in its cm3gcc.ld, == APPL_START_ADDR in
+# MotorBootloaderDefs.h - these two MUST be changed together, they're not
+# wired to each other automatically). Must stay row-aligned (CY_FLASH_ROW_SIZE
+# = 256 in cm3gcc.ld) and is the single source of truth for both targets
+# below, so the two images can never silently overlap in flash.
+set(CY_BOOTLOADER_SIZE 0x8100)
 
 add_subdirectory(src/rc-car-peripheral-controller/rc-car-peripheral-controller.cydsn)
 add_subdirectory(src/rc-car-peripheral-controller/rc-car-peripheral-bootloader.cydsn)

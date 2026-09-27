@@ -19,25 +19,43 @@ typedef struct __attribute__((__packed__))
     uint8_t len;
 } tSpiRxHdr;
 
-static uint8_t txReady = FALSE;
+volatile static uint8_t txReady = FALSE;
 static uint8_t rxChannel;
 static uint8 rxTD;
 
 volatile static uint8_t msgReady = FALSE;
 volatile static uint8_t rxLen = 0;
+volatile static uint8_t bufferIndexTx = 0;
+static uint8_t txBufferBytes = 0;
+volatile uint8_t retRegStatus;
 
 volatile static uint8_t rxBuffer[SPI_RX_BUFFER_SIZE              ] = { 0 };
-volatile static uint8_t txBuffer[sizeof(tCmdHdr)] = { 0 };
+volatile static uint8_t txBuffer[sizeof(tBlXfer)] = { 0 };
 
 static uint8_t configRxDMA(void);
 
 CY_ISR(txHandler)
 {
-    
+    // Read current TX status
+    uint8_t status = SPIS_TX_STATUS_REG;
+
+    // Fill TX FIFO until it's full or we've sent the whole struct
+    while (retRegStatus &&(status & SPIS_STS_TX_FIFO_NOT_FULL) &&
+           (bufferIndexTx < sizeof(spiTransactionStruct)) && (bufferIndexTx < txBufferBytes))
+    {
+        CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[bufferIndexTx++]); // Place byte in TX Buffer
+        status = SPIS_TX_STATUS_REG;  // refresh inside loop]]
+        txBufferBytes --; // Decrease the TX buffer bytes sent until empty
+    }
+
+    // Clear pending flag at the end
+    *tx_interrupt_INTC_CLR_PD = tx_interrupt__INTC_MASK;
 }
 
 CY_ISR(end_of_message_handler)
 {
+    bufferIndexTx = 0;
+
     *end_of_message_INTC_CLR_PD = end_of_message__INTC_MASK;
 
     /* Disable first for a clean, deterministic restart: a message shorter
@@ -149,6 +167,8 @@ static uint8_t configRxDMA(void)
         return RET_FAIL;
     }
 
+    tBlXfer* buff = (tBlXfer*) txBuffer;
+    buff->status = 0x00000000;
     return RET_PASS;
 }
 
@@ -172,7 +192,8 @@ uint8 blCommsPoll(uint8_t** pBuf, size_t* len)
 
 void Bootloader_SPI_SetResponse(uint8_t status)
 {
-    tCmdHdr* buff = (tCmdHdr*) txBuffer;
+    tBlXfer* buff = (tBlXfer*) txBuffer;
     buff->status = status;
-    txReady = TRUE;
+    buff->crc32 = xCRC32(txBuffer, sizeof(tBlXfer) - sizeof(buff->crc32));
+    txBufferBytes = sizeof(tBlXfer);
 }

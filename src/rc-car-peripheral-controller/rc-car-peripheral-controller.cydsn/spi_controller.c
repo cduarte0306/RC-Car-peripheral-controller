@@ -57,7 +57,7 @@ static xTaskHandle led_handle = NULL;
 
 
 volatile regMapType* regMap = NULL;
-uint8_t retRegStatus;
+volatile uint8_t retRegStatus;
 
 static uint8_t configRxDMA(void);
 
