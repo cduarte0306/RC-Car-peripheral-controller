@@ -23,7 +23,6 @@ int main(void)
     SPIS_ClearFIFO();
     SPIS_ClearRxBuffer();
     SPIS_ClearTxBuffer();
-    PWM_Start();
 
     UART_Debug_Start();
     uint8_t major, minor, build;

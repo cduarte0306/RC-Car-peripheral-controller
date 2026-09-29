@@ -81,12 +81,11 @@ CY_ISR(end_of_message_handler)
 void Bootloader_SPI_Start()
 {
     // Configure rx and tx interrupts
-    end_of_message_Start();
-    end_of_message_StartEx(end_of_message_handler);
- 
     tx_interrupt_Start();
     tx_interrupt_StartEx(txHandler);
 
+    end_of_message_Start();
+    end_of_message_StartEx(end_of_message_handler);\
     CHECK(configRxDMA());
 }
 

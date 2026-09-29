@@ -20,6 +20,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(COMMON_DIR ${PROJECT_ROOT}/src/common)
+set(APP_METADATA_SCRIPT ${PROJECT_ROOT}/scripts/metadata.py)
 
 # --- Flash layout shared between the bootloader and the application ---
 # The bootloader owns [0, 0x8000); [0x8000, CY_BOOTLOADER_SIZE) is a reserved
@@ -35,3 +36,4 @@ set(CY_BOOTLOADER_SIZE 0x8100)
 
 add_subdirectory(src/rc-car-peripheral-controller/rc-car-peripheral-controller.cydsn)
 add_subdirectory(src/rc-car-peripheral-controller/rc-car-peripheral-bootloader.cydsn)
+

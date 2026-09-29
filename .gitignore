@@ -58,6 +58,7 @@ Thumbs.db
 *.out
 
 *.xml
+*.pyc
 
 *.txt
 !CMakeLists.txt

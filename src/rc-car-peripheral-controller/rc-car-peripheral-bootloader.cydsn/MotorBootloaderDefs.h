@@ -10,9 +10,10 @@
 
 #define CY_ROW_LENGTH         256U                                // Number of bytes per row in PSoC flash
 #define CY_FLASH_SECTOR_SIZE  65536u                              // FLash sector size
+#define CY_FLASH_SIZE         0x40000UL
 #define CY_BL_REGION_END      APPL_START_ADDR                     // Ending memory address of bootloader region in flash
 #define CY_BL_NUM_ROWS        1024U                               // Maximum number of rows in flash
-#define CY_IMAGE_MAX_SIZE     0x38000U                            // Max address space of main app
+#define CY_IMAGE_MAX_SIZE     (CY_FLASH_SIZE - APPL_START_ADDR)
 #define CY_FIRST_APP_ROW      (APPL_START_ADDR / CY_ROW_LENGTH)   // First app row
 
 #ifdef __cplusplus
