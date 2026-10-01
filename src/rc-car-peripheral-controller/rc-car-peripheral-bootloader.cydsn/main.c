@@ -23,13 +23,12 @@ int main(void)
     SPIS_ClearFIFO();
     SPIS_ClearRxBuffer();
     SPIS_ClearTxBuffer();
-    PWM_Start();
 
     UART_Debug_Start();
     uint8_t major, minor, build;
     getVers(&major, &minor, &build);
     vLoggingPrintf(DEBUG_INFO, LOG_PSOC, " ===============================\r\n\r\n");
-    vLoggingPrintf(DEBUG_INFO, LOG_PSOC,"RC Car Bootloader version: %d.%d.%d\r\n",
+    vLoggingPrintf(DEBUG_INFO, LOG_PSOC,"RC Car Bootloader version: V%d.%d.%d\r\n",
             major, minor, build);
     Bootloader_Start();
         

@@ -12,9 +12,28 @@
 #include "core_cm3.h"       /* NVIC, SCB */
 #include "cmsis_gcc.h"      /* __set_MSP, __disable_irq */
 
-#define APP_JUMP_TIMEOUT  5000  // 2 seconds
+#define APP_JUMP_TIMEOUT  5000  // 5 seconds
 
 typedef void (*cy_app_entry_t)(void);
+
+/**
+ * @brief Main app metadata states
+ * 
+ */
+enum
+{
+    eAppStateNone = 1,      /**< No app present on Main app sector           */
+    eAppStateIncomplete,    /**< App write was started but was not completed */
+    eAppStateValid          /**< App has been written and is present         */
+};
+
+typedef struct __attribute__((__packed__))
+{
+    uint8_t  appImgState;   /**< State of app image          */
+    uint32_t appCrc;        /**< App's CRC32                 */
+    uint32_t appStart;      /**< Start address of image      */
+    uint32_t appEnd;        /**< End address of image region */
+} tMetaData_t;
 
 typedef struct
 {
@@ -22,29 +41,43 @@ typedef struct
     uint32_t reset_handler;
 } cy_app_vectors_t;
 
-CY_NOINIT static volatile uint32_t bootEntryFlag;
-volatile uint8_t commsStarted = FALSE;
 
+CY_NOINIT static volatile uint32_t bootEntryFlag;
+
+static uint8_t forceUpdate = FALSE;
+volatile uint8_t commsStarted = FALSE;
 static volatile uint32 g_ms;
 
-static uint8_t blParseCommand(const uint8_t* pData, uint16_t len);
+static uint32_t blParseCommand(const uint8_t* pData, uint16_t len);
 static void blJumpToMainApp();
 static void blDoUpgrade();
-cystatus BlWriteRow(uint32_t absoluteRow, const uint8_t rowData[CY_ROW_LENGTH]);
+static cystatus BlWriteRow(uint32_t absoluteRow, const uint8_t rowData[CY_ROW_LENGTH]);
+static uint8_t BlCheckMetadata();
+static cystatus BlWriteMetadata(uint32_t imageData, uint32_t imageCrc);
 extern uint8_t blCommsPoll(uint8_t** rxBuffer, size_t* len);
 
 void Bootloader_Start()
 {
     // Check if we should jump to the image or jump to bootloader mode
     Bootloader_SPI_Start();
-    CyFlash_Start();
+
+    // Verify main app metadata
+    vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Starting flash\r\n");
+
     (void) CySetTemp();
 
-    if (bootEntryFlag == BOOTLOADER_ENTRY_MAGIC)
+    if ((bootEntryFlag == BOOTLOADER_ENTRY_MAGIC) || (!BlCheckMetadata()))
     {
         vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Entering updating stage\r\n");
         blDoUpgrade();
     }
+
+    while (!BlCheckMetadata())
+    {
+        vLoggingPrintf(DEBUG_ERROR, LOG_PSOC, "No valid app image; staying in bootloader\r\n");
+        blDoUpgrade();
+    }
+
     vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Jumping to main app\r\n");
     blJumpToMainApp();
 }
@@ -104,16 +137,17 @@ static void blDoUpgrade()
 {
     uint8_t* rxPointer = NULL;
     size_t len = 0;
-    uint8_t ret = Bl_Ok;
+    uint32_t ret = Bl_Ok;
     uint32_t timeBeg = xGetTimestamp();
-    while ((xGetElapsed(timeBeg) < APP_JUMP_TIMEOUT) && (ret != Bl_Finished))
+    PWM_Start();
+
+    while (((xGetElapsed(timeBeg) < APP_JUMP_TIMEOUT) || forceUpdate) && (ret != Bl_Finished))
     {
         if (blCommsPoll(&rxPointer, &len))
         {
             CHECK(rxPointer != NULL);
-            const tHdr* hdr = (const tHdr*)rxPointer;
-            ret = blParseCommand((const uint8_t*)(hdr + 1), hdr->len);
-            Bootloader_SPI_SetResponse(ret);
+            const tBlXfer* hdr = (const tBlXfer*)rxPointer;
+            ret = blParseCommand((const uint8_t*)(hdr + 1), sizeof(tBlXfer));
         }
     }
 
@@ -124,55 +158,73 @@ static void blDoUpgrade()
     else
     {
         vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Update finalized\r\n");
+
+        // Wait 5 seconds before jumping to the image
+        timeBeg = xGetTimestamp();
+        uint8_t countDown = APP_JUMP_TIMEOUT % 1000;
+        while(xGetElapsed(timeBeg) < APP_JUMP_TIMEOUT)
+        {
+            if (xGetElapsed(timeBeg) % 1000)
+            {
+                vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Jumping to image in %d seconds\r", countDown --);
+            }
+        }
     }
 }
 
-static uint8_t blParseCommand(const uint8_t* pData, uint16_t len)
+static uint32_t blParseCommand(const uint8_t* pData, uint16_t len)
 {
     CHECK(pData != NULL);
-    const tCmdHdr* hdr = (const tCmdHdr*)pData;
+    const tBlXfer* hdr = (const tBlXfer*)pData;
     static uint8_t verifyStatus = FALSE;
     cystatus ret;
     uint32_t crc = 0;
+    static uint32_t stateReply = Bl_Ok;
     switch (hdr->cmd)
     {
+        case BootLoader_Ping:
+            vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Received Ping message from update server\r\n");
+                Bootloader_SPI_SetResponse((uint8_t)Bl_Ping);  // Reply with the ping state
+            break;
         case BootLoader_WriteRow:
             crc = xCRC32((uint8_t*)(hdr + 1), CY_ROW_LENGTH);
             if (crc == hdr->crc32)
             {
+                Bootloader_SPI_SetResponse((uint8_t)Bl_WriteInProgress);
                 ret = BlWriteRow(hdr->row, (uint8_t*)(hdr + 1));
                 if (ret == CYRET_SUCCESS)
                 {
-                    return Bl_WriteInProgress;
+                    stateReply = Bl_Ok;
                 }
             }
             else
             {
                 vLoggingPrintf(DEBUG_ERROR, LOG_PSOC, "Invalid CRC32 detected\r\n");
-                return Bl_Err;
+                stateReply = Bl_Err;
             }
             verifyStatus = crc == hdr->crc32;
             break;
-        case Bootloader_Verify_Write:
+        case Bootloader_Verify_Write:  // Does noithing
             break;
         case Bootloader_Finalize:
-            return Bl_Finished;
+            stateReply = Bl_Finished;
         default:
             break;
     }
 
-    if (ret != CYRET_SUCCESS)
-    {
-        vLoggingPrintf(DEBUG_ERROR, LOG_PSOC, "Could not execute operation: %d\r\n", hdr->cmd);
-        return Bl_Err;
-    }
-
-    return Bl_Ok;
+    Bootloader_SPI_SetResponse((uint8_t)stateReply);  // Stage the reply byte
+    return stateReply;
 }
 
-cystatus BlWriteRow(uint32_t absoluteRow, const uint8_t rowData[CY_ROW_LENGTH])
+static cystatus BlWriteRow(uint32_t absoluteRow, const uint8_t rowData[CY_ROW_LENGTH])
 {
-    if (absoluteRow < APPL_METADATA)
+    /* absoluteRow is a ROW NUMBER (0-1023), not a byte address - comparing
+     * it against APPL_METADATA (a byte address, 0x8000) was always true
+     * and never actually rejected anything. CY_FIRST_APP_ROW is the same
+     * boundary already expressed in row units. This also keeps the
+     * metadata row itself (row 128, [0x8000,0x8100)) out of reach of the
+     * normal WriteRow path - it's written only by Bootloader_Finalize. */
+    if (absoluteRow < CY_FIRST_APP_ROW)
     {
         return CYRET_BAD_PARAM;
     }
@@ -180,4 +232,42 @@ cystatus BlWriteRow(uint32_t absoluteRow, const uint8_t rowData[CY_ROW_LENGTH])
     uint16_t arrayId    = (uint8_t ) (absoluteRow / (CY_FLASH_SECTOR_SIZE / CY_ROW_LENGTH));
     uint16_t rowInArray = (uint16_t) (absoluteRow % (CY_FLASH_SECTOR_SIZE / CY_ROW_LENGTH));
     return CyWriteRowData(arrayId, rowInArray, rowData);
+}
+
+static cystatus BlWriteMetadata(uint32_t imageData, uint32_t imageCrc)
+{
+
+    return CYRET_SUCCESS;
+}
+
+static uint8_t BlCheckMetadata()
+{
+    const tMetaData_t* metadata = (const tMetaData_t*)APPL_METADATA;
+    if (metadata->appImgState != eAppStateValid)
+    {
+        vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Metadata Check | No image detected in sector\r\n");
+        return FALSE;
+    }
+
+    if ((metadata->appStart != APPL_START_ADDR) ||
+        (metadata->appEnd <= metadata->appStart) ||
+        (metadata->appEnd > CY_FLASH_SIZE) ||
+        ((metadata->appEnd - metadata->appStart) > CY_IMAGE_MAX_SIZE))
+    {
+        vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Metadata Check | Invalid image bounds\r\n");
+        return FALSE;
+    }
+
+    const uint8_t* imgBuff = (const uint8_t*)metadata->appStart;
+    uint32_t imageLength = metadata->appEnd - metadata->appStart;
+    uint32_t crc = xCRC32(imgBuff, imageLength);
+    if (crc != metadata->appCrc)
+    {
+        vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Metadata Check | Invalid image CRC detected\r\n");
+        return FALSE;
+    }
+
+    vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Metadata Check | Valid image CRC at address: 0x%08lX\r\n",
+                   (unsigned long)metadata->appStart);
+    return TRUE;
 }

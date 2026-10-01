@@ -19,6 +19,9 @@ set(APP_SOURCES
 
 set(FIRMWARE_TARGET ${BOOTLOADER_PROJECT_NAME}.elf)
 
+# Find the Python interpreter for running the metadata script.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 add_executable(${FIRMWARE_TARGET}
     ${GENERATED_DIR}/CyBootAsmGnu.s
     ${GENERATED_SOURCES}
@@ -69,6 +72,22 @@ target_link_options(${FIRMWARE_TARGET} PRIVATE
     -Wl,--gc-sections
     -Wl,-Map=${BOOTLOADER_PROJECT_NAME}.map
 )
+
+set(APP_TARGET "${PROJECT_NAME}.elf")
+set(APP_HEX
+    "${CMAKE_CURRENT_BINARY_DIR}/../rc-car-peripheral-controller.cydsn/${PROJECT_NAME}.hex")
+set(METADATA_HEX "${CMAKE_CURRENT_BINARY_DIR}/metadata.hex")
+
+add_custom_target(generate_bootloader_metadata
+    COMMAND "${Python3_EXECUTABLE}" "${APP_METADATA_SCRIPT}"
+        --app-hex "${APP_HEX}"
+        --output "${METADATA_HEX}"
+    DEPENDS "${APP_METADATA_SCRIPT}"
+    VERBATIM
+)
+
+add_dependencies(generate_bootloader_metadata "${APP_TARGET}")
+add_dependencies(${FIRMWARE_TARGET} generate_bootloader_metadata)
 
 set_target_properties(${FIRMWARE_TARGET} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT})
 

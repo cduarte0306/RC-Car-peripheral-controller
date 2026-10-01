@@ -33,8 +33,7 @@ xTaskHandle cli_handle      = NULL;
 xTaskHandle spi_coms_handle = NULL;
 xTaskHandle speed_rd_handle = NULL;
 
-
-int main(void) 
+int main(void)
 {
     BaseType_t ret;
 

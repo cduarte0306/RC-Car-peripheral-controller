@@ -107,7 +107,7 @@
         /* Initial value is 0xFFFFFFFF */
     	uint32 crc32 = 0xFFFFFFFFu;
     	
-    	for (uint8 i = 0; i < len; i++) 
+    	for (size_t i = 0; i < len; i++) 
         {
             /* Reflect input and XOR-in next input byte into MSB of crc and get this MSB, that's our new intermediate divident */
     		const uint8 pos = (uint8)((crc32 ^ (reflect8(data[i]) << 24)) >> 24);
