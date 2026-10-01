@@ -44,6 +44,7 @@ typedef struct
 
 CY_NOINIT static volatile uint32_t bootEntryFlag;
 
+uint8_t firmwareWriteStatus = 0xB00B;
 static uint8_t forceUpdate = FALSE;
 volatile uint8_t commsStarted = FALSE;
 static volatile uint32 g_ms;
@@ -141,7 +142,7 @@ static void blDoUpgrade()
     uint32_t timeBeg = xGetTimestamp();
     PWM_Start();
 
-    while (((xGetElapsed(timeBeg) < APP_JUMP_TIMEOUT) || forceUpdate) && (ret != Bl_Finished))
+    while (ret != Bl_Finished)
     {
         if (blCommsPoll(&rxPointer, &len))
         {
@@ -182,10 +183,6 @@ static uint32_t blParseCommand(const uint8_t* pData, uint16_t len)
     static uint32_t stateReply = Bl_Ok;
     switch (hdr->cmd)
     {
-        case BootLoader_Ping:
-            vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Received Ping message from update server\r\n");
-                Bootloader_SPI_SetResponse((uint8_t)Bl_Ping);  // Reply with the ping state
-            break;
         case BootLoader_WriteRow:
             crc = xCRC32((uint8_t*)(hdr + 1), CY_ROW_LENGTH);
             if (crc == hdr->crc32)
@@ -209,6 +206,7 @@ static uint32_t blParseCommand(const uint8_t* pData, uint16_t len)
         case Bootloader_Finalize:
             stateReply = Bl_Finished;
         default:
+            stateReply = Bl_Err;
             break;
     }
 

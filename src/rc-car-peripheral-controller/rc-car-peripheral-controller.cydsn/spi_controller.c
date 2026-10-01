@@ -48,8 +48,6 @@ volatile static uint8_t txBuffer[sizeof(spiTransactionStruct) + 1] = { 0 };
 volatile static uint8_t rxStatus;
 volatile static uint8_t txStatus;
 volatile static uint8_t firstTimeConnectionEstablished = pdFALSE;
-
-volatile static uint8_t bufferIndexRx = 0;
 volatile static uint8_t bufferIndexTx = 0;
 
 volatile static uint16_t connectionTimer = SPI_CONNECTION_TIMEOUT;
@@ -135,7 +133,6 @@ CY_ISR(end_of_message_handler)
         default: break;
     }
 
-    bufferIndexRx = 0;
     bufferIndexTx = 0;
 
     // Clear the previous buffer and place the first 4 bytes (size of HW FIFO) in

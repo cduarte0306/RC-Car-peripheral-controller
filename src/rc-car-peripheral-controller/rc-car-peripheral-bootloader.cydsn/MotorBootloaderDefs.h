@@ -3,10 +3,7 @@
 
 #include <stdint-gcc.h>
 
-#define BOOTLOADER_MAGIC      0xB002B002                          // Bootloader magic number
-
-#define APPL_METADATA         0x8000U
-#define APPL_START_ADDR       0x8100U
+#define BOOTLOADER_MAGIC      0xB002B002                          // Bootloader magic number                        // Application allotted size
 
 #define CY_ROW_LENGTH         256U                                // Number of bytes per row in PSoC flash
 #define CY_FLASH_SECTOR_SIZE  65536u                              // FLash sector size
@@ -15,6 +12,13 @@
 #define CY_BL_NUM_ROWS        1024U                               // Maximum number of rows in flash
 #define CY_IMAGE_MAX_SIZE     (CY_FLASH_SIZE - APPL_START_ADDR)
 #define CY_FIRST_APP_ROW      (APPL_START_ADDR / CY_ROW_LENGTH)   // First app row
+
+#define APPL_METADATA         0x8000U
+#define APPL_START_ADDR       0x8100U
+
+#define APPL_SIZE             0x37F00     
+
+#define APPL_NUM_ROWS         APPL_SIZE / CY_ROW_LENGTH
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,8 +39,8 @@ enum
  */
 enum
 {
-    Bl_Ping = 0xB002B002,  /**< Bootloader magic number */
-    Bl_Ok,
+    Bl_Ping = BOOTLOADER_MAGIC,  /**< Bootloader magic number */
+    Bl_Ok = 0x01,
     Bl_WriteInProgress,
     Bl_Err,
     Bl_Finished    

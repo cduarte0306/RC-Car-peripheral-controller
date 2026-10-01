@@ -22,6 +22,7 @@ typedef struct __attribute__((__packed__))
 volatile static uint8_t txReady = FALSE;
 static uint8_t rxChannel;
 static uint8 rxTD;
+extern uint8_t firmwareWriteStatus;
 
 volatile static uint8_t msgReady = FALSE;
 volatile static uint8_t rxLen = 0;
@@ -29,8 +30,8 @@ volatile static uint8_t bufferIndexTx = 0;
 static uint8_t txBufferBytes = 0;
 volatile uint8_t retRegStatus;
 
-volatile static uint8_t rxBuffer[SPI_RX_BUFFER_SIZE              ] = { 0 };
-volatile static uint8_t txBuffer[sizeof(tBlXfer)] = { 0 };
+volatile static uint8_t rxBuffer[SPI_RX_BUFFER_SIZE ] = { 0 };
+volatile static uint8_t txBuffer[sizeof(tBlXfer) + 1] = { 0 };
 
 static uint8_t configRxDMA(void);
 
@@ -40,12 +41,11 @@ CY_ISR(txHandler)
     uint8_t status = SPIS_TX_STATUS_REG;
 
     // Fill TX FIFO until it's full or we've sent the whole struct
-    while (retRegStatus &&(status & SPIS_STS_TX_FIFO_NOT_FULL) &&
-           (bufferIndexTx < sizeof(spiTransactionStruct)) && (bufferIndexTx < txBufferBytes))
+    while (status & SPIS_STS_TX_FIFO_NOT_FULL &&
+           (bufferIndexTx < sizeof(tBlXfer)))
     {
-        CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[bufferIndexTx++]); // Place byte in TX Buffer
+        CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[txBufferBytes++]); // Place byte in TX Buffer
         status = SPIS_TX_STATUS_REG;  // refresh inside loop]]
-        txBufferBytes --; // Decrease the TX buffer bytes sent until empty
     }
 
     // Clear pending flag at the end
@@ -70,11 +70,38 @@ CY_ISR(end_of_message_handler)
      * without this, every subsequent message keeps writing further past
      * rxBuffer instead of restarting at the beginning. */
     CyDmaTdSetAddress(rxTD, LO16((uint32)SPIS_RXDATA_PTR), LO16((uint32)rxBuffer));
-
     CyDmaChSetInitialTd(rxChannel, rxTD);
     CyDmaChEnable(rxChannel, 1);
 
-    msgReady = TRUE;    /* a full message is ready for blCommsPoll() to consume */
+    // Clear the previous buffer and place the first 4 bytes (size of HW FIFO) in
+    SPIS_ClearFIFO();
+
+    // Only set the message ready if not a Noop
+    tBlXfer* hdr = ((tBlXfer*)rxBuffer);
+    tBlXfer* tx =  ((tBlXfer*)txBuffer);
+    tx->cmd = hdr->cmd;
+
+    switch (hdr->cmd)
+    {
+        case Bootloader_Noop:
+            break;
+        case BootLoader_Ping:
+            tx->status = Bl_Ping;
+            break;
+        case Bootloader_Verify_Write:
+            tx->status = firmwareWriteStatus;
+            break;
+        default:
+            msgReady = TRUE;
+            break;
+    }
+
+    // Place data in the FIFO
+    CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[1]);
+    CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[2]);
+    CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[3]);
+    CY_SET_REG8(SPIS_TXDATA_PTR, txBuffer[4]);
+    txBufferBytes = 5;  // 4 preloaded bytes into FIFO
     txReady = FALSE;
 }
 
@@ -193,6 +220,5 @@ void Bootloader_SPI_SetResponse(uint8_t status)
 {
     tBlXfer* buff = (tBlXfer*) txBuffer;
     buff->status = status;
-    buff->crc32 = xCRC32(txBuffer, sizeof(tBlXfer) - sizeof(buff->crc32));
-    txBufferBytes = sizeof(tBlXfer);
+    buff->crc32 = xCRC32((uint8_t*)txBuffer, sizeof(tBlXfer) - sizeof(buff->crc32));
 }

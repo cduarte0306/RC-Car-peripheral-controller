@@ -142,23 +142,12 @@ void vCommsTask( void* pvParameters )
     }
 }
 
-
 void vRCTask( void* pvParameters )
 {
     ( void ) pvParameters;
-    uint8_t ret;
-    
-    ret = SPI_controller_start();
-    if ( ret != pdPASS )
-    {
-        vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | err: Could initialize SPI controller\r\n");
-    }
 
-    ret = RCInit();
-    if ( ret != pdPASS )
-    {
-        vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: init | err: Could initialize RC car module\r\n");
-    }
+    CHECK(SPI_controller_start() == TRUE);
+    CHECK(RCInit() == TRUE);
     
     for(;;)
     {
@@ -182,14 +171,8 @@ void vSpeedMeasureTask( void* pvParameters )
 void vCliTask( void* pvParameters )
 {
     ( void ) pvParameters;
-    
-    BaseType_t ret = APP_CLI_init();
-    if (!ret)
-    {
-        vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "app: APP_CLI_init | err: Could initialize app CLI\r\n");
-        vTaskDelete(cli_handle);
-    }
 
+    CHECK(APP_CLI_init() == TRUE);
     for(;;)
     {
         APP_CLI_update();
