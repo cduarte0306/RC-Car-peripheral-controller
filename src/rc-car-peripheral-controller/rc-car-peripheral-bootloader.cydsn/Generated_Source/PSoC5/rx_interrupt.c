@@ -1,5 +1,5 @@
 /*******************************************************************************
-* File Name: tx_interrupt.c  
+* File Name: rx_interrupt.c  
 * Version 1.70
 *
 *  Description:
@@ -18,15 +18,15 @@
 
 #include <cydevice_trm.h>
 #include <CyLib.h>
-#include <tx_interrupt.h>
+#include <rx_interrupt.h>
 #include "cyapicallbacks.h"
 
-#if !defined(tx_interrupt__REMOVED) /* Check for removal by optimization */
+#if !defined(rx_interrupt__REMOVED) /* Check for removal by optimization */
 
 /*******************************************************************************
 *  Place your includes, defines and code here 
 ********************************************************************************/
-/* `#START tx_interrupt_intc` */
+/* `#START rx_interrupt_intc` */
 
 /* `#END` */
 
@@ -42,7 +42,7 @@ CY_ISR_PROTO(IntDefaultHandler);
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_Start
+* Function Name: rx_interrupt_Start
 ********************************************************************************
 *
 * Summary:
@@ -58,24 +58,24 @@ CY_ISR_PROTO(IntDefaultHandler);
 *   None
 *
 *******************************************************************************/
-void tx_interrupt_Start(void)
+void rx_interrupt_Start(void)
 {
     /* For all we know the interrupt is active. */
-    tx_interrupt_Disable();
+    rx_interrupt_Disable();
 
-    /* Set the ISR to point to the tx_interrupt Interrupt. */
-    tx_interrupt_SetVector(&tx_interrupt_Interrupt);
+    /* Set the ISR to point to the rx_interrupt Interrupt. */
+    rx_interrupt_SetVector(&rx_interrupt_Interrupt);
 
     /* Set the priority. */
-    tx_interrupt_SetPriority((uint8)tx_interrupt_INTC_PRIOR_NUMBER);
+    rx_interrupt_SetPriority((uint8)rx_interrupt_INTC_PRIOR_NUMBER);
 
     /* Enable it. */
-    tx_interrupt_Enable();
+    rx_interrupt_Enable();
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_StartEx
+* Function Name: rx_interrupt_StartEx
 ********************************************************************************
 *
 * Summary:
@@ -101,24 +101,24 @@ void tx_interrupt_Start(void)
 *   None
 *
 *******************************************************************************/
-void tx_interrupt_StartEx(cyisraddress address)
+void rx_interrupt_StartEx(cyisraddress address)
 {
     /* For all we know the interrupt is active. */
-    tx_interrupt_Disable();
+    rx_interrupt_Disable();
 
-    /* Set the ISR to point to the tx_interrupt Interrupt. */
-    tx_interrupt_SetVector(address);
+    /* Set the ISR to point to the rx_interrupt Interrupt. */
+    rx_interrupt_SetVector(address);
 
     /* Set the priority. */
-    tx_interrupt_SetPriority((uint8)tx_interrupt_INTC_PRIOR_NUMBER);
+    rx_interrupt_SetPriority((uint8)rx_interrupt_INTC_PRIOR_NUMBER);
 
     /* Enable it. */
-    tx_interrupt_Enable();
+    rx_interrupt_Enable();
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_Stop
+* Function Name: rx_interrupt_Stop
 ********************************************************************************
 *
 * Summary:
@@ -131,22 +131,22 @@ void tx_interrupt_StartEx(cyisraddress address)
 *   None
 *
 *******************************************************************************/
-void tx_interrupt_Stop(void)
+void rx_interrupt_Stop(void)
 {
     /* Disable this interrupt. */
-    tx_interrupt_Disable();
+    rx_interrupt_Disable();
 
     /* Set the ISR to point to the passive one. */
-    tx_interrupt_SetVector(&IntDefaultHandler);
+    rx_interrupt_SetVector(&IntDefaultHandler);
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_Interrupt
+* Function Name: rx_interrupt_Interrupt
 ********************************************************************************
 *
 * Summary:
-*   The default Interrupt Service Routine for tx_interrupt.
+*   The default Interrupt Service Routine for rx_interrupt.
 *
 *   Add custom code between the coments to keep the next version of this file
 *   from over writting your code.
@@ -157,27 +157,27 @@ void tx_interrupt_Stop(void)
 *   None
 *
 *******************************************************************************/
-CY_ISR(tx_interrupt_Interrupt)
+CY_ISR(rx_interrupt_Interrupt)
 {
-    #ifdef tx_interrupt_INTERRUPT_INTERRUPT_CALLBACK
-        tx_interrupt_Interrupt_InterruptCallback();
-    #endif /* tx_interrupt_INTERRUPT_INTERRUPT_CALLBACK */ 
+    #ifdef rx_interrupt_INTERRUPT_INTERRUPT_CALLBACK
+        rx_interrupt_Interrupt_InterruptCallback();
+    #endif /* rx_interrupt_INTERRUPT_INTERRUPT_CALLBACK */ 
 
     /*  Place your Interrupt code here. */
-    /* `#START tx_interrupt_Interrupt` */
+    /* `#START rx_interrupt_Interrupt` */
 
     /* `#END` */
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_SetVector
+* Function Name: rx_interrupt_SetVector
 ********************************************************************************
 *
 * Summary:
-*   Change the ISR vector for the Interrupt. Note calling tx_interrupt_Start
+*   Change the ISR vector for the Interrupt. Note calling rx_interrupt_Start
 *   will override any effect this method would have had. To set the vector 
-*   before the component has been started use tx_interrupt_StartEx instead.
+*   before the component has been started use rx_interrupt_StartEx instead.
 * 
 *   When defining ISR functions, the CY_ISR and CY_ISR_PROTO macros should be 
 *   used to provide consistent definition across compilers:
@@ -197,18 +197,18 @@ CY_ISR(tx_interrupt_Interrupt)
 *   None
 *
 *******************************************************************************/
-void tx_interrupt_SetVector(cyisraddress address)
+void rx_interrupt_SetVector(cyisraddress address)
 {
     cyisraddress * ramVectorTable;
 
     ramVectorTable = (cyisraddress *) *CYINT_VECT_TABLE;
 
-    ramVectorTable[CYINT_IRQ_BASE + (uint32)tx_interrupt__INTC_NUMBER] = address;
+    ramVectorTable[CYINT_IRQ_BASE + (uint32)rx_interrupt__INTC_NUMBER] = address;
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_GetVector
+* Function Name: rx_interrupt_GetVector
 ********************************************************************************
 *
 * Summary:
@@ -221,26 +221,26 @@ void tx_interrupt_SetVector(cyisraddress address)
 *   Address of the ISR in the interrupt vector table.
 *
 *******************************************************************************/
-cyisraddress tx_interrupt_GetVector(void)
+cyisraddress rx_interrupt_GetVector(void)
 {
     cyisraddress * ramVectorTable;
 
     ramVectorTable = (cyisraddress *) *CYINT_VECT_TABLE;
 
-    return ramVectorTable[CYINT_IRQ_BASE + (uint32)tx_interrupt__INTC_NUMBER];
+    return ramVectorTable[CYINT_IRQ_BASE + (uint32)rx_interrupt__INTC_NUMBER];
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_SetPriority
+* Function Name: rx_interrupt_SetPriority
 ********************************************************************************
 *
 * Summary:
 *   Sets the Priority of the Interrupt. 
 *
-*   Note calling tx_interrupt_Start or tx_interrupt_StartEx will 
+*   Note calling rx_interrupt_Start or rx_interrupt_StartEx will 
 *   override any effect this API would have had. This API should only be called
-*   after tx_interrupt_Start or tx_interrupt_StartEx has been called. 
+*   after rx_interrupt_Start or rx_interrupt_StartEx has been called. 
 *   To set the initial priority for the component, use the Design-Wide Resources
 *   Interrupt Editor.
 *
@@ -255,14 +255,14 @@ cyisraddress tx_interrupt_GetVector(void)
 *   None
 *
 *******************************************************************************/
-void tx_interrupt_SetPriority(uint8 priority)
+void rx_interrupt_SetPriority(uint8 priority)
 {
-    *tx_interrupt_INTC_PRIOR = priority << 5;
+    *rx_interrupt_INTC_PRIOR = priority << 5;
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_GetPriority
+* Function Name: rx_interrupt_GetPriority
 ********************************************************************************
 *
 * Summary:
@@ -277,19 +277,19 @@ void tx_interrupt_SetPriority(uint8 priority)
 *    PSoC 4: Priority is from 0 to 3.
 *
 *******************************************************************************/
-uint8 tx_interrupt_GetPriority(void)
+uint8 rx_interrupt_GetPriority(void)
 {
     uint8 priority;
 
 
-    priority = *tx_interrupt_INTC_PRIOR >> 5;
+    priority = *rx_interrupt_INTC_PRIOR >> 5;
 
     return priority;
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_Enable
+* Function Name: rx_interrupt_Enable
 ********************************************************************************
 *
 * Summary:
@@ -304,15 +304,15 @@ uint8 tx_interrupt_GetPriority(void)
 *   None
 *
 *******************************************************************************/
-void tx_interrupt_Enable(void)
+void rx_interrupt_Enable(void)
 {
     /* Enable the general interrupt. */
-    *tx_interrupt_INTC_SET_EN = tx_interrupt__INTC_MASK;
+    *rx_interrupt_INTC_SET_EN = rx_interrupt__INTC_MASK;
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_GetState
+* Function Name: rx_interrupt_GetState
 ********************************************************************************
 *
 * Summary:
@@ -325,15 +325,15 @@ void tx_interrupt_Enable(void)
 *   1 if enabled, 0 if disabled.
 *
 *******************************************************************************/
-uint8 tx_interrupt_GetState(void)
+uint8 rx_interrupt_GetState(void)
 {
     /* Get the state of the general interrupt. */
-    return ((*tx_interrupt_INTC_SET_EN & (uint32)tx_interrupt__INTC_MASK) != 0u) ? 1u:0u;
+    return ((*rx_interrupt_INTC_SET_EN & (uint32)rx_interrupt__INTC_MASK) != 0u) ? 1u:0u;
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_Disable
+* Function Name: rx_interrupt_Disable
 ********************************************************************************
 *
 * Summary:
@@ -346,15 +346,15 @@ uint8 tx_interrupt_GetState(void)
 *   None
 *
 *******************************************************************************/
-void tx_interrupt_Disable(void)
+void rx_interrupt_Disable(void)
 {
     /* Disable the general interrupt. */
-    *tx_interrupt_INTC_CLR_EN = tx_interrupt__INTC_MASK;
+    *rx_interrupt_INTC_CLR_EN = rx_interrupt__INTC_MASK;
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_SetPending
+* Function Name: rx_interrupt_SetPending
 ********************************************************************************
 *
 * Summary:
@@ -373,14 +373,14 @@ void tx_interrupt_Disable(void)
 *   interrupts).
 *
 *******************************************************************************/
-void tx_interrupt_SetPending(void)
+void rx_interrupt_SetPending(void)
 {
-    *tx_interrupt_INTC_SET_PD = tx_interrupt__INTC_MASK;
+    *rx_interrupt_INTC_SET_PD = rx_interrupt__INTC_MASK;
 }
 
 
 /*******************************************************************************
-* Function Name: tx_interrupt_ClearPending
+* Function Name: rx_interrupt_ClearPending
 ********************************************************************************
 *
 * Summary:
@@ -398,9 +398,9 @@ void tx_interrupt_SetPending(void)
 *   None
 *
 *******************************************************************************/
-void tx_interrupt_ClearPending(void)
+void rx_interrupt_ClearPending(void)
 {
-    *tx_interrupt_INTC_CLR_PD = tx_interrupt__INTC_MASK;
+    *rx_interrupt_INTC_CLR_PD = rx_interrupt__INTC_MASK;
 }
 
 #endif /* End check for removal by optimization */

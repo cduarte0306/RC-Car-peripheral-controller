@@ -39,7 +39,7 @@
 #include "MOSI_aliases.h"
 #include "MOSI.h"
 #include "tx_interrupt.h"
-#include "DMA_SPI_RX_dma.h"
+#include "rx_interrupt.h"
 #include "PWM.h"
 #include "SPIS_IntClock.h"
 #include "UART_Debug_IntClock.h"

@@ -17,7 +17,7 @@
 *******************************************************************************/
 
 #include "SPIS_PVT.h"
-
+#include "cyapicallbacks.h"
 
 /* User code required at start of ISR */
 /* `#START SPIS_ISR_START_DEF` */

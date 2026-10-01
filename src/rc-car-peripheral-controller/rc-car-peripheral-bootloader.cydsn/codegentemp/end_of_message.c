@@ -19,7 +19,7 @@
 #include <cydevice_trm.h>
 #include <CyLib.h>
 #include <end_of_message.h>
-
+#include "cyapicallbacks.h"
 
 #if !defined(end_of_message__REMOVED) /* Check for removal by optimization */
 

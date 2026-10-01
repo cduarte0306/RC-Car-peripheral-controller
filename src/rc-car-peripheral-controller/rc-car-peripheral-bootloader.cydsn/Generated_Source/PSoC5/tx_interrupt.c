@@ -19,7 +19,7 @@
 #include <cydevice_trm.h>
 #include <CyLib.h>
 #include <tx_interrupt.h>
-
+#include "cyapicallbacks.h"
 
 #if !defined(tx_interrupt__REMOVED) /* Check for removal by optimization */
 

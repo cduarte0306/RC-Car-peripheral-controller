@@ -2,7 +2,7 @@
 --	Conversion of rc-car-peripheral-bootloader.v to vh2:
 --
 --	Cypress Semiconductor - WARP Version 6.3 IR 41
---	Sat Sep 19 02:15:15 2026
+--	Wed Sep 30 20:15:17 2026
 --
 
 USE cypress.cypress.all;
@@ -805,7 +805,6 @@ SIGNAL tmpOE__MOSI_net_0 : bit;
 SIGNAL tmpIO_0__MOSI_net_0 : bit;
 TERMINAL tmpSIOVREF__MOSI_net_0 : bit;
 SIGNAL tmpINTERRUPT_0__MOSI_net_0 : bit;
-SIGNAL Net_57 : bit;
 SIGNAL \PWM:PWMUDB:km_run\ : bit;
 SIGNAL \PWM:PWMUDB:min_kill_reg\ : bit;
 SIGNAL \PWM:PWMUDB:ClockOutFromEnBlock\ : bit;
@@ -2679,12 +2678,10 @@ tx_interrupt:cy_isr_v1_0
 	GENERIC MAP(int_type=>"10",
 		is_nmi=>'0')
 	PORT MAP(int_signal=>Net_44);
-DMA_SPI_RX:cy_dma_v1_0
-	GENERIC MAP(drq_type=>"00",
-		num_tds=>0)
-	PORT MAP(drq=>Net_1083,
-		trq=>zero,
-		nrq=>Net_57);
+rx_interrupt:cy_isr_v1_0
+	GENERIC MAP(int_type=>"10",
+		is_nmi=>'0')
+	PORT MAP(int_signal=>Net_1083);
 \PWM:PWMUDB:clock_enable_block\:cy_psoc3_udb_clock_enable_v1_0
 	GENERIC MAP(sync_mode=>'1')
 	PORT MAP(clock_in=>clock_1,

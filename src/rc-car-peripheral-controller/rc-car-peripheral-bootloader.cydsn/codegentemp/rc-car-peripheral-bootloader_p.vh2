@@ -1,5 +1,5 @@
 -- Project:   rc-car-peripheral-bootloader
--- Generated: 09/19/2026 02:15:15
+-- Generated: 09/30/2026 20:15:18
 -- PSoC Creator  4.4
 
 ENTITY \rc-car-peripheral-bootloader\ IS
@@ -45,7 +45,6 @@ ARCHITECTURE __DEFAULT__ OF \rc-car-peripheral-bootloader\ IS
     SIGNAL Net_161 : bit;
     SIGNAL Net_44 : bit;
     SIGNAL Net_49 : bit;
-    SIGNAL Net_57 : bit;
     SIGNAL Net_622_0 : bit;
     SIGNAL Net_622_1 : bit;
     SIGNAL Net_622_10 : bit;
@@ -247,7 +246,6 @@ ARCHITECTURE __DEFAULT__ OF \rc-car-peripheral-bootloader\ IS
     ATTRIBUTE lib_model OF \UART_Debug:BUART:sTX:TxSts\ : LABEL IS "statusicell3";
     ATTRIBUTE lib_model OF \UART_Debug:BUART:sRX:RxShifter:u0\ : LABEL IS "datapathcell4";
     ATTRIBUTE lib_model OF \UART_Debug:BUART:sRX:RxSts\ : LABEL IS "statusicell4";
-    ATTRIBUTE lib_model OF DMA_SPI_RX : LABEL IS "drqcell1";
     ATTRIBUTE lib_model OF \PWM:PWMUDB:genblk1:ctrlreg\ : LABEL IS "controlcell1";
     ATTRIBUTE lib_model OF \PWM:PWMUDB:genblk8:stsreg\ : LABEL IS "statusicell5";
     ATTRIBUTE lib_model OF \PWM:PWMUDB:sP16:pwmdp:u0\ : LABEL IS "datapathcell5";
@@ -527,14 +525,6 @@ ARCHITECTURE __DEFAULT__ OF \rc-car-peripheral-bootloader\ IS
     ATTRIBUTE udb_chain OF datapathcell : COMPONENT IS "ce0i,ce0,cl0i,cl0,z0i,z0,ff0i,ff0,ce1i,ce1,cl1i,cl1,z1i,z1,ff1i,ff1,cap0i,cap0,cap1i,cap1,ci,co_msb,sir,sol_msb,cfbi,cfbo,sil,sor,cmsbi,cmsbo";
     ATTRIBUTE chain_lsb OF datapathcell : COMPONENT IS "ce0i,cl0i,z0i,ff0i,ce1i,cl1i,z1i,ff1i,cap0i,cap1i,ci,sir,cfbi,sor,cmsbo";
     ATTRIBUTE chain_msb OF datapathcell : COMPONENT IS "ce0,cl0,z0,ff0,ce1,cl1,z1,ff1,cap0,cap1,co_msb,sol_msb,cfbo,sil,cmsbi";
-    COMPONENT drqcell
-        PORT (
-            dmareq : IN std_ulogic;
-            termin : IN std_ulogic;
-            termout : OUT std_ulogic;
-            interrupt : OUT std_ulogic;
-            clock : IN std_ulogic);
-    END COMPONENT;
     COMPONENT interrupt
         PORT (
             interrupt : IN std_ulogic;
@@ -1971,14 +1961,12 @@ BEGIN
             interrupt => Net_44,
             clock => ClockBlock_BUS_CLK);
 
-    DMA_SPI_RX:drqcell
+    rx_interrupt:interrupt
         GENERIC MAP(
-            drq_type => "00",
-            num_tds => 0)
+            int_type => "10",
+            is_nmi => 0)
         PORT MAP(
-            dmareq => Net_1083,
-            termin => '0',
-            termout => Net_57,
+            interrupt => Net_1083,
             clock => ClockBlock_BUS_CLK);
 
     \PWM:PWMUDB:genblk1:ctrlreg\:controlcell
