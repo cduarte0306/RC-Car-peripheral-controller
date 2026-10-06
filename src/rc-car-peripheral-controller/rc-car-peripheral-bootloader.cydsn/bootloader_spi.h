@@ -9,11 +9,4 @@
  */
 void Bootloader_SPI_Start();
 
-/**
- * @brief Set the reply buffer to the server
- * 
- * @param status 
- */
-void Bootloader_SPI_SetResponse(uint8_t status);
-
 #endif

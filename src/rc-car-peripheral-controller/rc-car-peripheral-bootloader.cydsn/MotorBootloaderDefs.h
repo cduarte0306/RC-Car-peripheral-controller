@@ -31,6 +31,7 @@ enum
     BootLoader_WriteRow,        /**< Write to specified row       */
     Bootloader_Verify_Write,    /**< Verify write                 */
     Bootloader_Finalize,        /**< Finalize update process      */
+    Bootloader_WriteCrc32,      /**< Write CRC32 to flash          */
 };
 
 /**

@@ -11,9 +11,11 @@
 void Bootloader_Start();
 
 /**
- * @brief Set the Comms Started flag to prevent from jumping to the app
+ * @brief Set the payload and transfer structure
  * 
+ * @param payload Pointer to the payload data
+ * @param xfer Pointer to the transfer structure containing command and CRC
  */
-inline void SetCommsStarted();
+void SetMessage(const uint8_t* payload, const tBlXfer* xfer);
 
 #endif

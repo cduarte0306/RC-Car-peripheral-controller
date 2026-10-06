@@ -27,6 +27,12 @@ enum
     eAppStateValid          /**< App has been written and is present         */
 };
 
+volatile struct Message
+{
+    tBlXfer xfer;
+    uint8_t* pBuff;    
+} msg;
+
 typedef struct __attribute__((__packed__))
 {
     uint8_t  appImgState;   /**< State of app image          */
@@ -44,17 +50,17 @@ typedef struct
 
 CY_NOINIT static volatile uint32_t bootEntryFlag;
 
-uint8_t firmwareWriteStatus = 0xB00B;
-static uint8_t forceUpdate = FALSE;
+uint32_t firmwareWriteCommand = Bootloader_Noop;
+uint32_t firmwareWriteStatus  = Bl_Ok;
 volatile uint8_t commsStarted = FALSE;
 static volatile uint32 g_ms;
 
-static uint32_t blParseCommand(const uint8_t* pData, uint16_t len);
+static uint32_t blParseCommand();
 static void blJumpToMainApp();
 static void blDoUpgrade();
 static cystatus BlWriteRow(uint32_t absoluteRow, const uint8_t rowData[CY_ROW_LENGTH]);
 static uint8_t BlCheckMetadata();
-static cystatus BlWriteMetadata(uint32_t imageData, uint32_t imageCrc);
+static cystatus BlWriteMetadata(uint32_t dataSize);
 extern uint8_t blCommsPoll(uint8_t** rxBuffer, size_t* len);
 
 void Bootloader_Start()
@@ -75,17 +81,21 @@ void Bootloader_Start()
 
     while (!BlCheckMetadata())
     {
+        firmwareWriteStatus = Bl_Err;
         vLoggingPrintf(DEBUG_ERROR, LOG_PSOC, "No valid app image; staying in bootloader\r\n");
         blDoUpgrade();
     }
 
+    bootEntryFlag = 0;
     vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Jumping to main app\r\n");
     blJumpToMainApp();
 }
 
-inline void SetCommsStarted()
+void SetMessage(const uint8_t* payload, const tBlXfer* xfer)
 {
-    commsStarted = TRUE;
+    msg.pBuff = (uint8_t*)payload;
+    msg.xfer = *xfer;
+    commsStarted   = TRUE;
 }
 
 static void blJumpToMainApp()
@@ -136,23 +146,22 @@ static void blJumpToMainApp()
 
 static void blDoUpgrade()
 {
-    uint8_t* rxPointer = NULL;
     size_t len = 0;
-    uint32_t ret = Bl_Ok;
     uint32_t timeBeg = xGetTimestamp();
+    uint32_t dataSize = 0;
     PWM_Start();
 
-    while (ret != Bl_Finished)
+    while (firmwareWriteStatus != Bl_Finished)
     {
-        if (blCommsPoll(&rxPointer, &len))
+        if (commsStarted)
         {
-            CHECK(rxPointer != NULL);
-            const tBlXfer* hdr = (const tBlXfer*)rxPointer;
-            ret = blParseCommand((const uint8_t*)(hdr + 1), sizeof(tBlXfer));
+            firmwareWriteStatus = blParseCommand();
+            dataSize += CY_ROW_LENGTH;
+            commsStarted = FALSE;
         }
     }
 
-    if (ret != Bl_Finished)
+    if (firmwareWriteStatus != Bl_Finished)
     {
         vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Failed to update app image\r\n");
     }
@@ -162,36 +171,39 @@ static void blDoUpgrade()
 
         // Wait 5 seconds before jumping to the image
         timeBeg = xGetTimestamp();
-        uint8_t countDown = APP_JUMP_TIMEOUT % 1000;
+        uint8_t countDown = APP_JUMP_TIMEOUT / 1000;
         while(xGetElapsed(timeBeg) < APP_JUMP_TIMEOUT)
         {
-            if (xGetElapsed(timeBeg) % 1000)
+            if (!(xGetElapsed(timeBeg) % 1000))
             {
                 vLoggingPrintf(DEBUG_INFO, LOG_PSOC, "Jumping to image in %d seconds\r", countDown --);
             }
         }
     }
+    BlWriteMetadata(dataSize);
 }
 
-static uint32_t blParseCommand(const uint8_t* pData, uint16_t len)
+static uint32_t blParseCommand()
 {
-    CHECK(pData != NULL);
-    const tBlXfer* hdr = (const tBlXfer*)pData;
-    static uint8_t verifyStatus = FALSE;
     cystatus ret;
     uint32_t crc = 0;
-    static uint32_t stateReply = Bl_Ok;
-    switch (hdr->cmd)
+    uint32_t stateReply = Bl_Ok;
+    switch (msg.xfer.cmd)
     {
         case BootLoader_WriteRow:
-            crc = xCRC32((uint8_t*)(hdr + 1), CY_ROW_LENGTH);
-            if (crc == hdr->crc32)
+            crc = xCRC32(msg.pBuff, CY_ROW_LENGTH);
+            if (crc == msg.xfer.crc32)
             {
-                Bootloader_SPI_SetResponse((uint8_t)Bl_WriteInProgress);
-                ret = BlWriteRow(hdr->row, (uint8_t*)(hdr + 1));
+                // Bootloader_SPI_SetResponse((uint8_t)Bl_WriteInProgress);
+                ret = BlWriteRow(msg.xfer.row, msg.pBuff);
                 if (ret == CYRET_SUCCESS)
                 {
                     stateReply = Bl_Ok;
+                }
+                else
+                {
+                    vLoggingPrintf(DEBUG_ERROR, LOG_PSOC, "Failed to write row %d\r\n", msg.xfer.row);
+                    stateReply = Bl_Err;
                 }
             }
             else
@@ -199,18 +211,19 @@ static uint32_t blParseCommand(const uint8_t* pData, uint16_t len)
                 vLoggingPrintf(DEBUG_ERROR, LOG_PSOC, "Invalid CRC32 detected\r\n");
                 stateReply = Bl_Err;
             }
-            verifyStatus = crc == hdr->crc32;
             break;
         case Bootloader_Verify_Write:  // Does noithing
             break;
         case Bootloader_Finalize:
             stateReply = Bl_Finished;
+            break;
         default:
+            vLoggingPrintf(DEBUG_ERROR, LOG_PSOC, "Unknown bootloader command\r\n");
             stateReply = Bl_Err;
             break;
     }
 
-    Bootloader_SPI_SetResponse((uint8_t)stateReply);  // Stage the reply byte
+    // Bootloader_SPI_SetResponse((uint8_t)stateReply);  // Stage the reply byte
     return stateReply;
 }
 
@@ -232,10 +245,18 @@ static cystatus BlWriteRow(uint32_t absoluteRow, const uint8_t rowData[CY_ROW_LE
     return CyWriteRowData(arrayId, rowInArray, rowData);
 }
 
-static cystatus BlWriteMetadata(uint32_t imageData, uint32_t imageCrc)
+static cystatus BlWriteMetadata(uint32_t dataSize)
 {
+    // Calculate metadata and write it to the flash memory
+    uint32_t crc = xCRC32((const uint8_t*)APPL_START_ADDR, dataSize);
+    tMetaData_t metadata;
+    metadata.appStart = APPL_START_ADDR;
+    metadata.appEnd = APPL_START_ADDR + dataSize;
+    metadata.appCrc = crc;
+    metadata.appImgState = eAppStateValid;
+    uint8_t row = APPL_METADATA / CY_ROW_LENGTH;
 
-    return CYRET_SUCCESS;
+    return CyWriteRowData(APPL_METADATA, row, (const uint8_t*)&metadata);
 }
 
 static uint8_t BlCheckMetadata()
