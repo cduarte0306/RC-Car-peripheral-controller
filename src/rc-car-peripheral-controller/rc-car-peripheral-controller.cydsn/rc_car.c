@@ -35,6 +35,7 @@ static uint8_t RcFsmStopHndl   (void* arg);
 static uint8_t RcFsmIdleHndl   (void* arg);
 static uint8_t RcFsmRunningHndl(void* arg);
 static uint8_t RcFsmReWindHndl (void* arg);
+static uint8_t RcEnterBootldr  (void* arg);
 
 // FSM states
 enum
@@ -45,6 +46,7 @@ enum
     RcFsmStop,
     RcFsmIdle,
     RcFsmRunning,
+    RcFsmEnterBootldr,
 };
 
 // IMU operations return codes
@@ -64,7 +66,7 @@ typedef struct
 
 static tStateMachine fsmPool[] =
 {
-    {RcFsmInitHndl}, {RcFsmReWindHndl}, {RcFsmInitRcHndl}, {RcFsmStopHndl}, {RcFsmIdleHndl}, {RcFsmRunningHndl}
+    {RcFsmInitHndl}, {RcFsmReWindHndl}, {RcFsmInitRcHndl}, {RcFsmStopHndl}, {RcFsmIdleHndl}, {RcFsmRunningHndl}, {RcEnterBootldr}
 };
 
 CY_NOINIT static volatile uint32_t bootEntryFlag;
@@ -246,8 +248,7 @@ uint8_t wrtReg(uint8_t reg, regMapType* val)
             }
             break;
         case REG_ENTER_BL:
-            bootEntryFlag = BOOTLOADER_ENTRY_MAGIC;
-            CY_LIB_RESET_CR2_REG |= CY_LIB_RESET_CR2_RESET;;
+            fsmInfo.fsmSetState = RcFsmEnterBootldr;
             break;
         default: break;
     }
@@ -528,4 +529,14 @@ static uint8 RcFsmRunningHndl(void* arg)
     return RcFsmRunning;
 }
 
+static uint8_t RcEnterBootldr(void* arg)
+{
+    // Implementation for entering bootloader mode
+    MotorCtrlStop();
+    vLoggingPrintf(DEBUG_INFO, LOG_RC_CAR, "Stopping motor and entering bootloader\r\n");
+
+    bootEntryFlag = BOOTLOADER_ENTRY_MAGIC;
+    CY_LIB_RESET_CR2_REG |= CY_LIB_RESET_CR2_RESET;;
+    return RcFsmEnterBootldr;
+}
 /* [] END OF FILE */
