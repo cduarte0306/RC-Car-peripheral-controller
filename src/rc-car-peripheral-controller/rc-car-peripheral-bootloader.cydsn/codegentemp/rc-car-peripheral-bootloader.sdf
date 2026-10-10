@@ -1,6 +1,6 @@
 (DELAYFILE
  (SDFVERSION "IEEE 1497 4.0")
- (DATE "2026-10-01T00:15:21Z")
+ (DATE "2026-10-10T01:15:43Z")
  (DESIGN "rc-car-peripheral-bootloader")
  (VENDOR "Cypress Semiconductor")
  (PROGRAM "PSoC Creator")
@@ -516,6 +516,8 @@
     (INTERCONNECT Tx_1\(0\)_PAD Tx_1\(0\).pad_in (0.000:0.000:0.000))
     (INTERCONNECT SS\(0\)_PAD SS\(0\).pad_in (0.000:0.000:0.000))
     (INTERCONNECT MOSI\(0\)_PAD MOSI\(0\).pad_in (0.000:0.000:0.000))
+    (INTERCONNECT steer_out\(0\)_PAD steer_out\(0\).pad_in (0.000:0.000:0.000))
+    (INTERCONNECT pwm_out\(0\)_PAD pwm_out\(0\).pad_in (0.000:0.000:0.000))
    )
   )
  )

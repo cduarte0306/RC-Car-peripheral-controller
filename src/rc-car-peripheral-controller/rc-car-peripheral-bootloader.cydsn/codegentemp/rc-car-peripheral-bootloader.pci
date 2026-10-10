@@ -1,5 +1,5 @@
 # rc-car-peripheral-bootloader
-# 2026-10-01 00:15:18Z
+# 2026-10-10 01:15:39Z
 
 # IO_0@[IOP=(1)][IoId=(0)] is reserved: SWDDebugEnabled
 dont_use_io iocell 1 0
@@ -14,3 +14,5 @@ set_io "Rx_1(0)" iocell 12 6
 set_io "Tx_1(0)" iocell 12 7
 set_io "SS(0)" iocell 2 2
 set_io "MOSI(0)" iocell 2 5
+set_io "steer_out(0)" iocell 2 7
+set_io "pwm_out(0)" iocell 2 6

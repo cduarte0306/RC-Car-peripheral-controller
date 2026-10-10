@@ -348,7 +348,7 @@ void cyfitter_cfg(void)
 
 	/* IOPINS0_2 Address: CYREG_PRT2_DM0 Size (bytes): 8 */
 	static const uint8 CYCODE BS_IOPINS0_2_VAL[] = {
-		0x25u, 0x12u, 0x12u, 0x00u, 0x12u, 0x00u, 0x00u, 0x01u};
+		0x25u, 0xD2u, 0xD2u, 0x00u, 0x12u, 0x00u, 0x00u, 0x01u};
 
 #ifdef CYGlobalIntDisable
 	/* Disable interrupts by default. Let user enable if/when they want. */
