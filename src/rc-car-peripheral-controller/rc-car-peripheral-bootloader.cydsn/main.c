@@ -17,6 +17,11 @@
 int main(void)
 {
     CyGlobalIntEnable; /* Enable global interrupts. */
+    uint8 staticBits = (pwm_out_DR & (uint8)(~pwm_out_MASK));
+    pwm_out_DR = staticBits | ((uint8)(0 << pwm_out_SHIFT) & pwm_out_MASK);
+
+    staticBits = (steer_out_DR & (uint8)(~steer_out_MASK));
+    steer_out_DR = staticBits | ((uint8)(0 << steer_out_SHIFT) & steer_out_MASK);
 
     /* Place your initialization/startup code here (e.g. MyInst_Start()) */
     SPIS_Start();
